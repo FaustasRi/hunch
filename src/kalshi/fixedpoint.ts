@@ -25,7 +25,11 @@ export function centsToUsd(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
-/** Fixed-point dollar string → integer cents (rounded). "0.16" → 16, "0.1600" → 16. */
+/**
+ * Fixed-point dollar string → integer cents (rounded). "0.16" → 16, "0.1600" → 16.
+ * Assumes a non-negative price (Kalshi prices are 1–99¢); Math.round is half-up, which
+ * is correct for non-negative cent prices. Throws on a non-numeric string.
+ */
 export function dollarStringToCents(s: string): number {
   return Math.round(parseDollarString(s) * 100);
 }

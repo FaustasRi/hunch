@@ -25,3 +25,10 @@ export function fmtCentsPrice(cents: number): string {
 export function fmtDollars(dollarString: string): string {
   return parseDollarString(dollarString).toFixed(2);
 }
+
+/** Prefix a 2-decimal amount string with a correctly-placed $: "1.60" → "$1.60", "-3.25" → "-$3.25". */
+export function money(twoDecimalAmount: string): string {
+  return twoDecimalAmount.startsWith('-')
+    ? `-$${twoDecimalAmount.slice(1)}`
+    : `$${twoDecimalAmount}`;
+}

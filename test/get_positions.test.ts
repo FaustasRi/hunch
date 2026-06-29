@@ -44,4 +44,13 @@ describe('fetchPositions / renderPositions', () => {
   it('renders an empty state', () => {
     expect(renderPositions([])).toBe('No open positions.');
   });
+
+  it('places the sign correctly on negative realized P&L (-$3.25, not $-3.25)', () => {
+    const out = renderPositions([
+      { ticker: 'T', outcome: 'NO', contracts: 5, exposureUsd: '2.10', realizedPnlUsd: '-3.25' },
+    ]);
+    expect(out).toContain('exposure $2.10');
+    expect(out).toContain('realized P&L -$3.25');
+    expect(out).not.toContain('$-3.25');
+  });
 });

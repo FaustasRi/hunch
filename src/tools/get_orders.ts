@@ -19,8 +19,10 @@ const STATUS = ['resting', 'canceled', 'executed'] as const;
 export interface OrderView {
   orderId: string;
   ticker: string;
-  verb: 'buy' | 'sell';
-  outcome: 'YES' | 'NO';
+  /** undefined when the API returned neither canonical book_side nor deprecated action. */
+  verb: 'buy' | 'sell' | undefined;
+  outcome: 'YES' | 'NO' | undefined;
+  type: string | undefined;
   priceCents: number | undefined;
   initial: number;
   filled: number;
@@ -31,14 +33,18 @@ export interface OrderView {
 export function normalizeOrder(o: KalshiOrder): OrderView {
   const bookSide =
     o.book_side ?? (o.action === 'sell' ? 'ask' : o.action === 'buy' ? 'bid' : undefined);
-  const outcome = (o.outcome_side ?? o.side) === 'no' ? 'NO' : 'YES';
-  const verb = bookSide === 'ask' ? 'sell' : 'buy';
-  const priceStr = outcome === 'YES' ? o.yes_price_dollars : o.no_price_dollars;
+  const outcomeRaw = o.outcome_side ?? o.side;
+  // Don't fabricate a direction — a mislabeled buy/sell or yes/no is dangerous.
+  const outcome = outcomeRaw === 'no' ? 'NO' : outcomeRaw === 'yes' ? 'YES' : undefined;
+  const verb = bookSide === 'ask' ? 'sell' : bookSide === 'bid' ? 'buy' : undefined;
+  const priceStr =
+    outcome === 'YES' ? o.yes_price_dollars : outcome === 'NO' ? o.no_price_dollars : undefined;
   return {
     orderId: o.order_id,
     ticker: o.ticker,
     verb,
     outcome,
+    type: o.type,
     priceCents: priceStr ? dollarStringToCents(priceStr) : undefined,
     initial: o.initial_count_fp ? parseFp(o.initial_count_fp) : 0,
     filled: o.fill_count_fp ? parseFp(o.fill_count_fp) : 0,
@@ -70,9 +76,11 @@ export async function fetchOrders(
 export function renderOrders(orders: OrderView[]): string {
   if (orders.length === 0) return 'No orders.';
   const lines = orders.map((o) => {
+    const dir = `${o.verb ?? '?'} ${o.outcome ?? '?'}`;
     const price = o.priceCents !== undefined ? ` ${fmtCentsPrice(o.priceCents)}` : '';
+    const type = o.type ? ` ${o.type}` : '';
     const status = o.status ? ` [${o.status}]` : '';
-    return `${o.ticker}  ${o.verb} ${o.outcome}${price} ×${o.initial}${status} filled ${o.filled}/${o.initial} · id ${o.orderId}`;
+    return `${o.ticker}  ${dir}${type}${price} ×${o.initial}${status} filled ${o.filled}/${o.initial} · id ${o.orderId}`;
   });
   return `${orders.length} order(s):\n\n${lines.join('\n')}`;
 }
@@ -87,11 +95,12 @@ export function register(server: McpServer, ctx: ServerContext): void {
         'progress, and status (resting/canceled/executed). Read-only. Filter by ticker ' +
         'or status.',
       inputSchema: {
-        ticker: z.string().optional().describe('Filter to one market ticker.'),
+        ticker: z.string().min(1).optional().describe('Filter to one market ticker.'),
         status: z.enum(STATUS).optional().describe('Filter by order status.'),
-        limit: z.number().int().min(1).max(1000).optional(),
-        cursor: z.string().optional(),
+        limit: z.number().int().min(1).max(1000).optional().describe('Page size (1–1000).'),
+        cursor: z.string().optional().describe('Pagination cursor from a previous response.'),
       },
+
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async (args) => {

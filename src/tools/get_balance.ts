@@ -22,6 +22,11 @@ export interface AccountBalance {
 
 export function normalizeBalance(raw: KalshiBalanceResponse): AccountBalance {
   const cashCents = raw.balance;
+  if (!Number.isFinite(cashCents)) {
+    throw new Error(
+      'Kalshi balance response missing a numeric `balance` — cannot read account balance.',
+    );
+  }
   const balance: AccountBalance = {
     cashCents,
     cashUsd: centsToUsd(cashCents),

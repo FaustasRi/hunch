@@ -43,6 +43,13 @@ describe('normalizeOrder', () => {
     });
     expect(v).toMatchObject({ verb: 'sell', outcome: 'NO', priceCents: 40 });
   });
+
+  it('does NOT fabricate a direction when no side/action field is present', () => {
+    const v = normalizeOrder({ order_id: 'x', ticker: 'T' });
+    expect(v.verb).toBeUndefined();
+    expect(v.outcome).toBeUndefined();
+    expect(renderOrders([v])).toContain('? ?');
+  });
 });
 
 describe('fetchOrders / renderOrders', () => {
@@ -55,8 +62,8 @@ describe('fetchOrders / renderOrders', () => {
     });
     const out = renderOrders(await fetchOrders(client));
     expect(out).toContain('2 order(s)');
-    expect(out).toContain('buy YES 16¢ ×10 [resting] filled 0/10 · id ord_resting_1');
-    expect(out).toContain('buy NO 30¢ ×4 [executed] filled 4/4 · id ord_done_2');
+    expect(out).toContain('buy YES limit 16¢ ×10 [resting] filled 0/10 · id ord_resting_1');
+    expect(out).toContain('buy NO limit 30¢ ×4 [executed] filled 4/4 · id ord_done_2');
   });
 
   it('passes the status filter through as a query param', async () => {

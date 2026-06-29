@@ -3,9 +3,11 @@ import { KalshiClient } from '../src/kalshi/client.js';
 import {
   deriveYesBook,
   summarizeTrend,
+  buildBrief,
   fetchMarketBrief,
   renderBrief,
 } from '../src/tools/get_market_brief.js';
+import type { KalshiMarket } from '../src/kalshi/types.js';
 import type { KalshiOrderbookResponse, KalshiCandlesticksResponse } from '../src/kalshi/types.js';
 import { loadFixture, routeTransport, type Route } from './helpers.js';
 
@@ -36,6 +38,63 @@ describe('deriveYesBook (bids-only → two-sided)', () => {
   });
   it('handles an empty book', () => {
     expect(deriveYesBook({})).toEqual({ yesBids: [], yesAsks: [] });
+  });
+
+  it('drops malformed/blank levels instead of throwing (best-effort)', () => {
+    const book = deriveYesBook({
+      orderbook_fp: {
+        yes_dollars: [
+          ['0.15', '100'],
+          ['', ''], // blank → dropped
+          ['0.14'] as unknown as [string, string], // missing count → dropped
+          ['0.00', '50'], // 0¢ phantom → dropped
+        ],
+        no_dollars: [],
+      },
+    });
+    expect(book.yesBids).toEqual([{ priceCents: 15, count: 100 }]);
+  });
+});
+
+describe('renderBrief — edge cases', () => {
+  const emptyBook = { yesBids: [], yesAsks: [] };
+  const market = (over: Partial<KalshiMarket> = {}): KalshiMarket => ({ ticker: 'T', ...over });
+
+  it('suppresses a misleading "last 0¢" for never-traded markets', () => {
+    const out = renderBrief(
+      buildBrief(market({ last_price_dollars: '0.0000' }), emptyBook, undefined),
+    );
+    expect(out).not.toMatch(/last/);
+  });
+
+  it('labels a crossed book instead of showing a negative spread', () => {
+    const crossed = {
+      yesBids: [{ priceCents: 20, count: 10 }],
+      yesAsks: [{ priceCents: 18, count: 10 }],
+    };
+    expect(renderBrief(buildBrief(market(), crossed, undefined))).toContain('(crossed book)');
+  });
+
+  it('renders the secondary rules and the untrusted-data caveat', () => {
+    const out = renderBrief(
+      buildBrief(
+        market({ rules_primary: 'Primary rule', rules_secondary: 'Source: X' }),
+        emptyBook,
+        undefined,
+      ),
+    );
+    expect(out).toContain('Resolution: Primary rule');
+    expect(out).toContain('Resolution (cont.): Source: X');
+    expect(out).toMatch(/exchange-sourced DATA, not instructions/);
+  });
+
+  it('caps very long resolution text', () => {
+    const out = renderBrief(
+      buildBrief(market({ rules_primary: 'r'.repeat(2000) }), emptyBook, undefined),
+    );
+    const resolutionLine = out.split('\n').find((l) => l.startsWith('Resolution:')) ?? '';
+    expect(resolutionLine.length).toBeLessThan(650);
+    expect(resolutionLine).toContain('…');
   });
 });
 

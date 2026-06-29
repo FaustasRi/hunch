@@ -129,24 +129,52 @@ function buildQuery(query: KalshiRequestOptions['query']): string {
   return parts.length ? `?${parts.join('&')}` : '';
 }
 
+const MAX_DETAIL_LEN = 200;
+
 function formatApiError(res: KalshiHttpResponse, method: string, path: string): string {
   const detail = extractErrorMessage(res.json);
   const base = `Kalshi API ${res.status} on ${method} ${path}`;
-  return detail ? `${base}: ${detail}` : base;
+  const hint = statusHint(res.status);
+  return [detail ? `${base}: ${detail}` : base, hint].filter(Boolean).join(' ');
 }
 
-/** Pulls a message out of Kalshi's `{ error: { code, message } }` or `{ message }` shapes. */
+/** A short, actionable nudge for the common failure statuses. */
+function statusHint(status: number): string {
+  if (status === 401 || status === 403)
+    return '(check the API key id + private key, and that your clock is correct — signatures are time-sensitive.)';
+  if (status === 429) return '(rate limited — back off and retry.)';
+  if (status >= 500) return '(Kalshi-side error — retry shortly.)';
+  return '';
+}
+
+/**
+ * Pull a message out of Kalshi's `{ error: { code, message } }` or `{ message }` shapes.
+ * A non-JSON body (e.g. an HTML gateway page on a 5xx) is summarized, never dumped — an
+ * unbounded body would be useless to the model and a context-budget bomb.
+ */
 function extractErrorMessage(json: unknown): string | undefined {
-  if (!json || typeof json !== 'object') return typeof json === 'string' ? json : undefined;
+  if (typeof json === 'string') return summarizeNonJson(json);
+  if (!json || typeof json !== 'object') return undefined;
   const obj = json as Record<string, unknown>;
   if (obj.error && typeof obj.error === 'object') {
     const err = obj.error as Record<string, unknown>;
     const code = typeof err.code === 'string' ? err.code : undefined;
     const message = typeof err.message === 'string' ? err.message : undefined;
     const joined = [code, message].filter(Boolean).join(' — ');
-    return joined || undefined;
+    return joined ? truncate(joined) : undefined;
   }
-  return typeof obj.message === 'string' ? obj.message : undefined;
+  return typeof obj.message === 'string' ? truncate(obj.message) : undefined;
+}
+
+function summarizeNonJson(body: string): string | undefined {
+  const trimmed = body.trim();
+  if (trimmed.length === 0) return undefined;
+  if (trimmed.startsWith('<')) return `<non-JSON response, ${trimmed.length} bytes>`;
+  return truncate(trimmed);
+}
+
+function truncate(s: string): string {
+  return s.length > MAX_DETAIL_LEN ? `${s.slice(0, MAX_DETAIL_LEN)}…` : s;
 }
 
 /** Default transport over global fetch (Node 20+). Never used in unit tests. */

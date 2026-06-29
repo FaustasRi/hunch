@@ -9,8 +9,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ServerContext } from '../context.js';
 import type { KalshiClient } from '../kalshi/client.js';
 import type { KalshiMarketPosition, KalshiPositionsResponse } from '../kalshi/types.js';
-import { parseFp, dollarStringToCents } from '../kalshi/fixedpoint.js';
-import { fmtDollars } from '../mcp/format.js';
+import { parseFp } from '../kalshi/fixedpoint.js';
+import { fmtDollars, money } from '../mcp/format.js';
 import { textResult, errorResult, toErrorMessage } from '../mcp/result.js';
 
 export interface PositionView {
@@ -57,21 +57,34 @@ export async function fetchPositions(
   return normalizePositions(res);
 }
 
-/** Sum current open exposure (max loss across positions) in cents — for the exposure cap. */
+/**
+ * Sum current open exposure (max loss across positions) in cents — for the exposure cap.
+ * Paginates ALL pages: a single page would UNDER-count exposure (a safety control) for
+ * accounts with many positions. Defensive parse so one odd value can't throw.
+ */
 export async function fetchOpenExposureCents(client: KalshiClient): Promise<number> {
-  const res = await client.get<KalshiPositionsResponse>('/portfolio/positions', {});
-  return (res.market_positions ?? []).reduce(
-    (sum, p) =>
-      sum + (p.market_exposure_dollars ? dollarStringToCents(p.market_exposure_dollars) : 0),
-    0,
-  );
+  let cursor: string | undefined;
+  let total = 0;
+  let pages = 0;
+  do {
+    const res = await client.get<KalshiPositionsResponse>('/portfolio/positions', {
+      query: { limit: 1000, cursor },
+    });
+    for (const p of res.market_positions ?? []) {
+      const dollars = Number(p.market_exposure_dollars);
+      if (Number.isFinite(dollars)) total += Math.round(dollars * 100);
+    }
+    cursor = res.cursor || undefined;
+    pages += 1;
+  } while (cursor && pages < 20);
+  return total;
 }
 
 export function renderPositions(positions: PositionView[]): string {
   if (positions.length === 0) return 'No open positions.';
   const lines = positions.map((p) => {
-    const exposure = p.exposureUsd !== undefined ? ` · exposure $${p.exposureUsd}` : '';
-    const pnl = p.realizedPnlUsd !== undefined ? ` · realized P&L $${p.realizedPnlUsd}` : '';
+    const exposure = p.exposureUsd !== undefined ? ` · exposure ${money(p.exposureUsd)}` : '';
+    const pnl = p.realizedPnlUsd !== undefined ? ` · realized P&L ${money(p.realizedPnlUsd)}` : '';
     return `${p.ticker}  ${p.outcome} ${p.contracts}${exposure}${pnl}`;
   });
   return `${positions.length} open position(s):\n\n${lines.join('\n')}`;
@@ -86,10 +99,10 @@ export function register(server: McpServer, ctx: ServerContext): void {
         'Your open Kalshi positions with contract count, market exposure, and realized ' +
         'P&L. Read-only. Long YES shows as YES; long NO as NO.',
       inputSchema: {
-        ticker: z.string().optional().describe('Filter to one market ticker.'),
-        event_ticker: z.string().optional().describe('Filter to one event.'),
-        limit: z.number().int().min(1).max(1000).optional(),
-        cursor: z.string().optional(),
+        ticker: z.string().min(1).optional().describe('Filter to one market ticker.'),
+        event_ticker: z.string().min(1).optional().describe('Filter to one event.'),
+        limit: z.number().int().min(1).max(1000).optional().describe('Page size (1–1000).'),
+        cursor: z.string().optional().describe('Pagination cursor from a previous response.'),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
