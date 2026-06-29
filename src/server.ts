@@ -5,6 +5,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { loadConfig } from './config.js';
 import { createContext } from './context.js';
+import { buildInstructions } from './instructions.js';
 import { register as registerGetBalance } from './tools/get_balance.js';
 import { register as registerSearchMarkets } from './tools/search_markets.js';
 import { register as registerGetMarketBrief } from './tools/get_market_brief.js';
@@ -16,6 +17,9 @@ import { register as registerCancelOrder } from './tools/cancel_order.js';
 import { register as registerCancelAllOrders } from './tools/cancel_all_orders.js';
 import { register as registerMarketResource } from './resources/market.js';
 import { register as registerPortfolioResource } from './resources/portfolio.js';
+import { register as registerAnalyzeMarketPrompt } from './prompts/analyze_market.js';
+import { register as registerScanOpportunitiesPrompt } from './prompts/scan_opportunities.js';
+import { register as registerReviewPositionsPrompt } from './prompts/review_positions.js';
 
 const NAME = 'hunch';
 const VERSION = '0.0.0';
@@ -26,15 +30,7 @@ export function createServer(): McpServer {
 
   const server = new McpServer(
     { name: NAME, version: VERSION },
-    {
-      // TODO(M6): replace with the full domain primer — cents = probability,
-      // $1/$0 settlement, fees, the active caps, and the miscalibration caveat
-      // ("Hunch surfaces price/news/base-rate; the human decides size").
-      instructions:
-        `Hunch exposes Kalshi prediction markets over MCP. Environment: ${config.env} ` +
-        `(demo = fake money). Prices are probabilities quoted in cents. ` +
-        `Trades are demo-default and capped; you confirm every order.`,
-    },
+    { instructions: buildInstructions(config) },
   );
 
   // Registration wired up across checkpoints:
@@ -49,7 +45,9 @@ export function createServer(): McpServer {
   registerCancelAllOrders(server, ctx);
   registerMarketResource(server, ctx);
   registerPortfolioResource(server, ctx);
-  //   M6: prompts
+  registerAnalyzeMarketPrompt(server);
+  registerScanOpportunitiesPrompt(server);
+  registerReviewPositionsPrompt(server);
 
   return server;
 }
