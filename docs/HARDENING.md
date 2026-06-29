@@ -41,9 +41,22 @@ quality pass. Each landed item: tests added, `npm run verify` green, committed.
 - [x] Tool descriptions / instructions (prompt-injection caveat, fee P) / banner (sports
       honesty) / README (max loss) tightened.
 
-## Verification
+## Verification ✅
 
-- [x] Final clean live demo end-to-end run passes; demo account left clean.
-- [ ] Adversarial verifier sub-agents confirm the fixes hold + tests are non-vacuous.
-- [ ] Final safety-audit confirms the harness still clean (token gate, V2-only mutation,
-      caps, audit). `npm run verify` green; pushed. → `HARDENING COMPLETE`.
+- [x] Final clean live demo end-to-end run passes; demo account left clean (0 resting, $100).
+- [x] Two adversarial verifier sub-agents confirmed the core properties hold and the tests
+      are non-vacuous (proven by probe). Each found a residual hole in the "defensive" code —
+      audit-durability daily-cap bypass, and a structural-junk orderbook still sinking the
+      brief — both fixed in the verification round (fe855d7) with new tests.
+- [x] Final safety-audit sub-agent verdict: **CLEAN** — token gate (one createOrderV2 caller),
+      V2-only mutation, reject-not-clamp caps (durable across audit-write failure + concurrency),
+      full audit coverage, no secret in logs, demo-default live gate, prompt-injection caveat.
+      `npm run verify` green (135 pass, 2 gated-skip). Pushed. → **HARDENING COMPLETE**
+
+## Known v2 follow-ups (documented, out of scope)
+
+- Cross-process daily cap: two server instances sharing one `AUDIT_LOG_PATH` each enforce
+  independently (no cross-process lock). Per-order + exposure caps still apply. (ADR-0003.)
+- An ambiguous-failure order that landed but is never retried isn't counted toward the daily
+  cap (logged as `error`; user directed to get_orders + idempotent retry). Inherent to network ambiguity.
+- Automatic per-market sports classification (v1 = ALLOW_SPORTS flag + informing caveat).
