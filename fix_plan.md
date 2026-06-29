@@ -14,7 +14,7 @@ For each item: implement → `npm run verify` green → commit (Conventional Com
 - [x] **M5 — `place_order` (token-gated) + `cancel_order` + `cancel_all_orders` + audit + confirm.** Mutation via V2 namespace only; refuses without valid token; audit log; demo smoke places+cancels.
 - [x] **M6 — Context polish: server `instructions` + 3 prompts.** Domain primer + miscalibration caveat; `/analyze-market`, `/scan-opportunities`, `/review-positions`.
 - [x] **M7 — Live-mode gate + safety review.** Demo default; live needs 2 acts, uncap needs 3rd; gating matrix tested; secret/cap/mutation audit passes.
-- [ ] **M8 — Distribution & docs.** `npx -y hunch-mcp` boots from `npm pack`; README Claude Code + Codex snippets correct; CONTRIBUTING. → `EXIT_SIGNAL`.
+- [x] **M8 — Distribution & docs.** `npx -y hunch-mcp` boots from `npm pack`; README Claude Code + Codex snippets correct; CONTRIBUTING. → `EXIT_SIGNAL`.
 
 ## In progress
 <!--
@@ -41,3 +41,6 @@ Clear it back to empty when the checkpoint is finished.
 - M5 ✅ V2 mutation module (create/cancel/batch-cancel, verified), audit writer, elicitation+token confirm, `place_order` (token-gated, re-checks caps, audits, idempotent COID), `cancel_order`, `cancel_all_orders`; gated demo integration test; 9 tools (7f5384a).
 - M6 ✅ config-driven server `instructions` (mechanics + rails + miscalibration caveat) and 3 prompts (/analyze-market, /scan-opportunities, /review-positions); 9 tools + 2 resources + 3 prompts (58d51be).
 - M7 ✅ live-mode gate (DISABLE_LIMITS live-only so demo always enforces; key-alone stays demo; matrix tested), stderr startup banner + live/jurisdiction/sports caveats (no secrets), security review clean (no secret logs, mutation only via gated tools, audit covers all writes); ADR-0003 sports note (14c7d4e).
+- M8 ✅ distribution verified — `npm pack` clean tarball + `npx -y ./*.tgz` boots over stdio with 9 tools (shebang survives tsc); CONTRIBUTING.md + docs/DEMO.md (setup/walkthrough/GIF placeholder); README → v1 feature-complete; gitignore *.tgz (0866056).
+
+**v1 COMPLETE** — 9 tools + 2 resources + 3 prompts; demo-default safety harness (preview→token→place, reject-not-clamp caps, audit, live gate); `npm run verify` green; packed artifact boots via npx.
