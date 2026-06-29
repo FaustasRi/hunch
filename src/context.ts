@@ -8,6 +8,7 @@ import type { Config } from './config.js';
 import { KalshiClient } from './kalshi/client.js';
 import { TokenStore } from './safety/token.js';
 import { Mutex } from './safety/mutex.js';
+import { DailyLedger } from './safety/ledger.js';
 
 export interface ServerContext {
   config: Config;
@@ -16,6 +17,8 @@ export interface ServerContext {
   tokens: TokenStore;
   /** Serializes placement so concurrent orders can't both pass a near-limit daily cap. */
   placeLock: Mutex;
+  /** In-memory daily-spend backstop so the daily cap holds even if the audit log can't be written. */
+  dailyLedger: DailyLedger;
 }
 
 export function createContext(config: Config): ServerContext {
@@ -24,5 +27,11 @@ export function createContext(config: Config): ServerContext {
     apiKeyId: config.apiKeyId,
     privateKeyPem: config.privateKeyPem,
   });
-  return { config, client, tokens: new TokenStore(), placeLock: new Mutex() };
+  return {
+    config,
+    client,
+    tokens: new TokenStore(),
+    placeLock: new Mutex(),
+    dailyLedger: new DailyLedger(),
+  };
 }

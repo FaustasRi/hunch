@@ -34,10 +34,11 @@ export function normalizeBalance(raw: KalshiBalanceResponse): AccountBalance {
     portfolioValueUsd: undefined,
     totalUsd: undefined,
   };
-  if (typeof raw.portfolio_value === 'number') {
-    balance.portfolioValueCents = raw.portfolio_value;
-    balance.portfolioValueUsd = centsToUsd(raw.portfolio_value);
-    balance.totalUsd = centsToUsd(cashCents + raw.portfolio_value);
+  const pv = raw.portfolio_value;
+  if (typeof pv === 'number' && Number.isFinite(pv)) {
+    balance.portfolioValueCents = pv;
+    balance.portfolioValueUsd = centsToUsd(pv);
+    balance.totalUsd = centsToUsd(cashCents + pv);
   }
   return balance;
 }

@@ -24,6 +24,17 @@ describe('normalizeBalance', () => {
     expect(b.totalUsd).toBe('1312.56');
   });
 
+  it('rejects a missing/non-numeric balance instead of rendering $NaN', () => {
+    expect(() => normalizeBalance({} as never)).toThrow(/numeric/);
+    expect(() => normalizeBalance({ balance: 'x' } as never)).toThrow(/numeric/);
+  });
+
+  it('ignores a non-finite portfolio_value (no $NaN)', () => {
+    const b = normalizeBalance({ balance: 5000, portfolio_value: NaN });
+    expect(b.portfolioValueUsd).toBeUndefined();
+    expect(b.totalUsd).toBeUndefined();
+  });
+
   it('omits position value when the API does not return it', () => {
     const b = normalizeBalance({ balance: 5000 });
     expect(b.cashUsd).toBe('50.00');

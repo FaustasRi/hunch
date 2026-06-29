@@ -12,7 +12,7 @@ import type { ServerContext } from '../context.js';
 import { translateOrder, orderCostBasisCents, type ConversationalOrder } from './translate.js';
 import { fetchOpenExposureCents } from './get_positions.js';
 import { checkCaps, type CapCheck } from '../safety/caps.js';
-import { readAuditEntries, sumPlacedCostWithin24hCents } from '../safety/audit.js';
+import { dailyPlacedCents } from '../safety/ledger.js';
 import type { PreviewedOrder } from '../safety/token.js';
 import { centsToUsd } from '../kalshi/fixedpoint.js';
 import { textResult, errorResult, toErrorMessage } from '../mcp/result.js';
@@ -77,11 +77,7 @@ export async function buildPreview(
   const v2 = translateOrder(conversational);
   const costBasisCents = orderCostBasisCents(conversational);
 
-  const dailyPlacedCents = sumPlacedCostWithin24hCents(
-    readAuditEntries(ctx.config.auditLogPath),
-    now(),
-    ctx.config.env,
-  );
+  const daily = dailyPlacedCents(ctx.config.auditLogPath, ctx.dailyLedger, now(), ctx.config.env);
 
   let openExposureCents = 0;
   let exposureNote: string | undefined;
@@ -93,7 +89,10 @@ export async function buildPreview(
     exposureNote = `live exposure unavailable (${toErrorMessage(err)}); exposure cap not applied`;
   }
 
-  const caps = checkCaps({ costBasisCents, dailyPlacedCents, openExposureCents }, ctx.config.caps);
+  const caps = checkCaps(
+    { costBasisCents, dailyPlacedCents: daily, openExposureCents },
+    ctx.config.caps,
+  );
 
   const previewed: PreviewedOrder = {
     conversational,
@@ -104,7 +103,7 @@ export async function buildPreview(
     clientOrderId: randomUUID(),
     rationale: args.rationale,
   };
-  return { previewed, dailyPlacedCents, openExposureCents, exposureNote, caps };
+  return { previewed, dailyPlacedCents: daily, openExposureCents, exposureNote, caps };
 }
 
 function renderReject(p: PreviewResult): string {

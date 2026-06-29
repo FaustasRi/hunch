@@ -169,6 +169,11 @@ async function preciseMarkets(client: KalshiClient, p: MarketSearchParams): Prom
 
 async function textSearch(client: KalshiClient, p: MarketSearchParams): Promise<SearchResult> {
   const tokens = tokenize(p.query ?? '');
+  // A query with no usable tokens (punctuation/stopwords) would otherwise scan the full
+  // page budget and mislabel the result "partial". Short-circuit to a clean empty state.
+  if (tokens.length === 0) {
+    return emptyResult('empty', { query: p.query, category: p.category, capped: false });
+  }
   const status = p.status ?? 'open';
   const matched: Array<{ event: KalshiEvent; score: number }> = [];
   let cursor: string | undefined;

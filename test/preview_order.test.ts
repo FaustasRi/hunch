@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { KalshiClient } from '../src/kalshi/client.js';
 import { TokenStore } from '../src/safety/token.js';
+import { Mutex } from '../src/safety/mutex.js';
+import { DailyLedger } from '../src/safety/ledger.js';
 import { runPreview, buildPreview } from '../src/tools/preview_order.js';
 import type { ServerContext } from '../src/context.js';
 import type { Config } from '../src/config.js';
@@ -27,7 +29,13 @@ function makeCtx(opts: { withKey?: boolean } = {}): ServerContext {
     privateKeyPem: config.privateKeyPem,
     transport: routeTransport([{ match: '/portfolio/positions', json: positions }]),
   });
-  return { config, client, tokens: new TokenStore({ now: () => 1000, genId: () => 'TESTTOKEN' }) };
+  return {
+    config,
+    client,
+    tokens: new TokenStore({ now: () => 1000, genId: () => 'TESTTOKEN' }),
+    placeLock: new Mutex(),
+    dailyLedger: new DailyLedger(),
+  };
 }
 
 describe('preview_order', () => {

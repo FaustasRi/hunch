@@ -25,13 +25,12 @@ import { KalshiApiError } from '../kalshi/client.js';
 import { fetchOpenExposureCents } from './get_positions.js';
 import { checkCaps } from '../safety/caps.js';
 import {
-  readAuditEntries,
-  sumPlacedCostWithin24hCents,
   appendAuditEntry,
   makeAuditEntry,
   type AuditEntry,
   type AuditResult,
 } from '../safety/audit.js';
+import { dailyPlacedCents } from '../safety/ledger.js';
 import type { PreviewedOrder } from '../safety/token.js';
 import { serverConfirmer, type Confirmer } from '../safety/confirm.js';
 import { textResult, errorResult, toErrorMessage } from '../mcp/result.js';
@@ -96,8 +95,8 @@ function renderPlaced(
   exposureNote: string | undefined,
 ): string {
   const c = order.conversational;
-  const filled = safeFp(res.fill_count_fp) ?? res.fill_count;
-  const remaining = safeFp(res.remaining_count_fp) ?? res.remaining_count;
+  const filled = safeFp(res?.fill_count_fp) ?? res?.fill_count;
+  const remaining = safeFp(res?.remaining_count_fp) ?? res?.remaining_count;
   const fillLine =
     filled !== undefined || remaining !== undefined
       ? ` filled ${filled ?? 0}, remaining ${remaining ?? '?'}.`
@@ -107,7 +106,7 @@ function renderPlaced(
   const expo = exposureNote ? `\nNote: ${exposureNote}` : '';
   return (
     `Order placed (${order.env}): ${c.action} ${c.side.toUpperCase()} ${c.priceCents}¢ ×${c.count} on ${c.ticker}.\n` +
-    `order_id=${res.order_id ?? '(unknown)'} client_order_id=${order.clientOrderId}.${fillLine}${confirmNote}${expo}`
+    `order_id=${res?.order_id ?? '(unknown)'} client_order_id=${order.clientOrderId}.${fillLine}${confirmNote}${expo}`
   );
 }
 
@@ -129,12 +128,9 @@ async function placeInner(ctx: ServerContext, token: string, deps: PlaceDeps) {
   }
   const order = peeked.order;
 
-  // 2. Re-check caps with fresh, env-scoped daily spend + open exposure.
-  const dailyPlacedCents = sumPlacedCostWithin24hCents(
-    readAuditEntries(path),
-    now(),
-    ctx.config.env,
-  );
+  // 2. Re-check caps with fresh, env-scoped daily spend (audit log + in-memory ledger,
+  //    so the cap holds even if the audit log can't be written) + open exposure.
+  const daily = dailyPlacedCents(path, ctx.dailyLedger, now(), ctx.config.env);
   let openExposureCents = 0;
   let exposureNote: string | undefined;
   try {
@@ -143,14 +139,17 @@ async function placeInner(ctx: ServerContext, token: string, deps: PlaceDeps) {
     exposureNote = `exposure cap not applied — positions unavailable (${toErrorMessage(err)})`;
   }
   const caps = checkCaps(
-    { costBasisCents: order.costBasisCents, dailyPlacedCents, openExposureCents },
+    { costBasisCents: order.costBasisCents, dailyPlacedCents: daily, openExposureCents },
     ctx.config.caps,
   );
   if (!caps.ok) {
     ctx.tokens.remove(token); // a capped order shouldn't be retryable as-is
     appendAuditEntry(
       path,
-      makeAuditEntry(auditFields(order, 'rejected', { error: caps.violations.join('; ') }), now),
+      makeAuditEntry(
+        auditFields(order, 'rejected', { error: caps.violations.join('; '), note: exposureNote }),
+        now,
+      ),
     );
     return errorResult(
       `Order REJECTED — caps exceeded:\n${caps.violations.map((v) => `  - ${v}`).join('\n')}`,
@@ -200,12 +199,24 @@ async function placeInner(ctx: ServerContext, token: string, deps: PlaceDeps) {
       path,
       makeAuditEntry(auditFields(order, 'error', { error: toErrorMessage(err) }), now),
     );
-    return errorResult(`Order rejected by Kalshi: ${toErrorMessage(err)}`);
+    // "not placed" (not "rejected by Kalshi") — covers definite 4xx AND missing creds,
+    // which never reached the exchange.
+    return errorResult(`Order not placed: ${toErrorMessage(err)}`);
   }
 
-  // 5. Success — consume the token, audit ok, then render (render never throws).
+  // 5. Success — consume the token, record the spend in-memory (cap backstop), audit ok,
+  //    then render (render never throws, even on a null/odd response body).
   ctx.tokens.remove(token);
-  appendAuditEntry(path, makeAuditEntry(auditFields(order, 'ok', { orderId: res.order_id }), now));
+  ctx.dailyLedger.record({
+    tsMs: now(),
+    costCents: order.costBasisCents,
+    clientOrderId: order.clientOrderId,
+    env: order.env,
+  });
+  appendAuditEntry(
+    path,
+    makeAuditEntry(auditFields(order, 'ok', { orderId: res?.order_id, note: exposureNote }), now),
+  );
   return textResult(renderPlaced(order, res, decision.via, exposureNote));
 }
 

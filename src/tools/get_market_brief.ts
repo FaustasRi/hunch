@@ -68,25 +68,35 @@ export interface MarketBrief {
  * YES bids come straight from `yes_dollars`; YES asks are the NO bids inverted
  * (price 100 − p), since a YES ask at p == a NO bid at 100 − p.
  */
-/** Parse one [priceDollars, countFp] level defensively → null if malformed/empty. */
-function parseLevel(price: string, count: string, invert: boolean): DepthLevel | null {
-  const p = Number(price);
-  const c = Number(count);
+/**
+ * Parse one order-book level defensively → null if malformed. Totally robust: a
+ * non-array level, missing/non-numeric/blank/0 price or count, and out-of-range
+ * (phantom 0¢/100¢) all return null instead of throwing — so junk can't sink the brief.
+ */
+function parseLevel(level: unknown, invert: boolean): DepthLevel | null {
+  if (!Array.isArray(level)) return null;
+  const p = Number(level[0]);
+  const c = Number(level[1]);
   if (!Number.isFinite(p) || !Number.isFinite(c) || c <= 0) return null;
   const priceCents = invert ? 100 - Math.round(p * 100) : Math.round(p * 100);
-  if (priceCents < 1 || priceCents > 99) return null; // drop phantom 0¢/100¢ / garbage
+  if (priceCents < 1 || priceCents > 99) return null;
   return { priceCents, count: c };
+}
+
+/** Coerce a possibly-junk `*_dollars` field to an array of raw levels (never throws). */
+function levelsOf(raw: unknown): unknown[] {
+  return Array.isArray(raw) ? raw : [];
 }
 
 export function deriveYesBook(ob: KalshiOrderbookResponse, maxLevels = MAX_LEVELS): TwoSidedBook {
   const isLevel = (l: DepthLevel | null): l is DepthLevel => l !== null;
-  const yesBids = (ob.orderbook_fp?.yes_dollars ?? [])
-    .map(([price, count]) => parseLevel(price, count, false))
+  const yesBids = levelsOf(ob.orderbook_fp?.yes_dollars)
+    .map((level) => parseLevel(level, false))
     .filter(isLevel)
     .sort((a, b) => b.priceCents - a.priceCents)
     .slice(0, maxLevels);
-  const yesAsks = (ob.orderbook_fp?.no_dollars ?? [])
-    .map(([price, count]) => parseLevel(price, count, true))
+  const yesAsks = levelsOf(ob.orderbook_fp?.no_dollars)
+    .map((level) => parseLevel(level, true))
     .filter(isLevel)
     .sort((a, b) => a.priceCents - b.priceCents)
     .slice(0, maxLevels);

@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { KalshiClient } from '../src/kalshi/client.js';
-import { normalizePositions, fetchPositions, renderPositions } from '../src/tools/get_positions.js';
+import { KalshiClient, type KalshiTransport } from '../src/kalshi/client.js';
+import {
+  normalizePositions,
+  fetchPositions,
+  fetchOpenExposureCents,
+  renderPositions,
+} from '../src/tools/get_positions.js';
 import type { KalshiPositionsResponse } from '../src/kalshi/types.js';
 import { loadFixture, routeTransport, testKey } from './helpers.js';
 
@@ -52,5 +57,31 @@ describe('fetchPositions / renderPositions', () => {
     expect(out).toContain('exposure $2.10');
     expect(out).toContain('realized P&L -$3.25');
     expect(out).not.toContain('$-3.25');
+  });
+});
+
+describe('fetchOpenExposureCents — sums exposure across ALL pages (cap not under-counted)', () => {
+  it('follows the cursor and totals every page', async () => {
+    const page1 = {
+      market_positions: [{ ticker: 'A', position_fp: '1.00', market_exposure_dollars: '1.60' }],
+      cursor: 'PAGE2',
+    };
+    const page2 = {
+      market_positions: [{ ticker: 'B', position_fp: '1.00', market_exposure_dollars: '2.40' }],
+      cursor: '',
+    };
+    let calls = 0;
+    const transport: KalshiTransport = async (req) => {
+      calls += 1;
+      return { status: 200, json: req.url.includes('cursor=PAGE2') ? page2 : page1 };
+    };
+    const client = new KalshiClient({
+      baseUrl: DEMO_BASE,
+      apiKeyId: 'k',
+      privateKeyPem: testKey(),
+      transport,
+    });
+    expect(await fetchOpenExposureCents(client)).toBe(400); // 160 + 240, both pages
+    expect(calls).toBe(2);
   });
 });

@@ -64,6 +64,21 @@ describe('searchMarkets — text mode (the live "bitcoin" false-negative, now fi
     expect(out).toContain('No open markets matched');
     expect(out).toContain('Categories:');
   });
+
+  it('short-circuits a punctuation/stopword-only query — no scan, not labeled "partial"', async () => {
+    let eventFetches = 0;
+    const c = new KalshiClient({
+      baseUrl: DEMO_BASE,
+      transport: async (req) => {
+        if (req.url.includes('/events')) eventFetches += 1;
+        return { status: 200, json: eventsPage };
+      },
+    });
+    const r = await searchMarkets(c, { query: '!!! a' });
+    expect(r.mode).toBe('empty');
+    expect(r.capped).toBe(false);
+    expect(eventFetches).toBe(0); // no wasted page scan
+  });
 });
 
 describe('searchMarkets — other modes', () => {

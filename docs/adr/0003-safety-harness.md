@@ -28,3 +28,9 @@ An LLM that can place real-money orders is dangerous: hallucinated params, runaw
   caveat that informs the user (legality is US-state-dependent and unknowable server-side).** Automatic
   per-market sports classification + hard rejection is deferred — it needs reliable category data and the
   informing caveat is the meaningful safeguard. Revisit if Kalshi market metadata makes classification cheap.
+- **The daily cap is enforced per server PROCESS.** State is the audit log plus an in-memory ledger
+  (`src/safety/ledger.ts`) so it survives an unwritable log; concurrency within the process is serialized by
+  a mutex. Two separate server instances pointing at the **same** `AUDIT_LOG_PATH` (e.g. Claude Code *and*
+  Codex launched from one cwd) each enforce the daily cap independently — there is no cross-process lock in
+  v1 (the per-order and exposure caps still apply to both). Run one instance per `AUDIT_LOG_PATH`, or accept
+  the daily cap is per-instance. A file-advisory-lock is the v2 fix.

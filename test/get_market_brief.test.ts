@@ -54,6 +54,29 @@ describe('deriveYesBook (bids-only → two-sided)', () => {
     });
     expect(book.yesBids).toEqual([{ priceCents: 15, count: 100 }]);
   });
+
+  it('does not throw on STRUCTURALLY junk levels or a non-array container', () => {
+    expect(() =>
+      deriveYesBook({ orderbook_fp: { yes_dollars: [null, 123, {}] as never, no_dollars: [] } }),
+    ).not.toThrow();
+    expect(deriveYesBook({ orderbook_fp: { yes_dollars: 'oops' as never } })).toEqual({
+      yesBids: [],
+      yesAsks: [],
+    });
+  });
+
+  it('still renders a brief when the orderbook fetch returns junk (status 200, bad shape)', async () => {
+    const routes: Route[] = [
+      { match: '/candlesticks', json: candles },
+      { match: '/orderbook', json: { orderbook_fp: { yes_dollars: [null] } } },
+      { match: '/events/', json: event },
+      { match: '/markets/', json: market },
+    ];
+    const client = new KalshiClient({ baseUrl: DEMO_BASE, transport: routeTransport(routes) });
+    const brief = await fetchMarketBrief(client, TICKER, () => 1_735_200_000_000);
+    expect(brief.ticker).toBe(TICKER); // brief survives; book just empty
+    expect(brief.book.yesBids).toEqual([]);
+  });
 });
 
 describe('renderBrief — edge cases', () => {

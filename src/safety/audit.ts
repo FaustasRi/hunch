@@ -31,6 +31,8 @@ export interface AuditEntry {
   clientOrderId?: string | undefined;
   rationale?: string | undefined;
   error?: string | undefined;
+  /** Non-error annotation (e.g. "exposure cap not applied"). */
+  note?: string | undefined;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

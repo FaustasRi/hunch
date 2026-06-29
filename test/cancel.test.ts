@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { KalshiClient, type KalshiTransport } from '../src/kalshi/client.js';
 import { TokenStore } from '../src/safety/token.js';
 import { Mutex } from '../src/safety/mutex.js';
+import { DailyLedger } from '../src/safety/ledger.js';
 import { executeCancel } from '../src/tools/cancel_order.js';
 import { executeCancelAll } from '../src/tools/cancel_all_orders.js';
 import type { ServerContext } from '../src/context.js';
@@ -32,7 +33,13 @@ function makeCtx(transport: KalshiTransport): ServerContext {
     privateKeyPem: config.privateKeyPem,
     transport,
   });
-  return { config, client, tokens: new TokenStore(), placeLock: new Mutex() };
+  return {
+    config,
+    client,
+    tokens: new TokenStore(),
+    placeLock: new Mutex(),
+    dailyLedger: new DailyLedger(),
+  };
 }
 
 const textOf = (r: { content: Array<{ text?: string }> }): string => r.content[0]?.text ?? '';
@@ -161,6 +168,22 @@ describe('cancel_all_orders', () => {
     expect(
       readLog(ctx.config.auditLogPath).some(
         (e) => e.event === 'cancel_all' && e.result === 'rejected',
+      ),
+    ).toBe(true);
+  });
+
+  it('audits a batch-cancel API failure', async () => {
+    const ctx = makeCtx(async (req) => {
+      if (req.url.includes('/portfolio/orders')) return { status: 200, json: restingOrders };
+      if (req.url.includes('/portfolio/events/orders/batched'))
+        return { status: 500, json: { error: { message: 'down' } } };
+      return { status: 404, json: {} };
+    });
+    const res = await executeCancelAll(ctx, { confirm: proceed });
+    expect(res.isError).toBe(true);
+    expect(
+      readLog(ctx.config.auditLogPath).some(
+        (e) => e.event === 'cancel_all' && e.result === 'error',
       ),
     ).toBe(true);
   });

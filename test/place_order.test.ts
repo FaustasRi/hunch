@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { KalshiClient, type KalshiTransport } from '../src/kalshi/client.js';
 import { TokenStore, type PreviewedOrder } from '../src/safety/token.js';
 import { Mutex } from '../src/safety/mutex.js';
+import { DailyLedger } from '../src/safety/ledger.js';
 import { executePlace } from '../src/tools/place_order.js';
 import type { ServerContext } from '../src/context.js';
 import type { Config } from '../src/config.js';
@@ -42,9 +43,15 @@ const proceed = async (): Promise<ConfirmDecision> => ({ proceed: true, via: 'im
 const decline = async (): Promise<ConfirmDecision> => ({ proceed: false, reason: 'declined' });
 
 function makeCtx(
-  opts: { transport?: KalshiTransport; caps?: Config['caps']; tokens?: TokenStore } = {},
+  opts: {
+    transport?: KalshiTransport;
+    caps?: Config['caps'];
+    tokens?: TokenStore;
+    auditLogPath?: string;
+  } = {},
 ): ServerContext {
-  const auditLogPath = join(mkdtempSync(join(tmpdir(), 'hunch-audit-')), 'audit.jsonl');
+  const auditLogPath =
+    opts.auditLogPath ?? join(mkdtempSync(join(tmpdir(), 'hunch-audit-')), 'audit.jsonl');
   const config: Config = {
     env: 'demo',
     baseUrl: DEMO_BASE,
@@ -79,6 +86,7 @@ function makeCtx(
     client,
     tokens: opts.tokens ?? new TokenStore({ now: () => 1000, genId: () => 'TKN' }),
     placeLock: new Mutex(),
+    dailyLedger: new DailyLedger(),
   };
 }
 
@@ -112,6 +120,9 @@ describe('place_order — token gate', () => {
     const res = await executePlace(ctx, token, { confirm: proceed, now: () => clock });
     expect(res.isError).toBe(true);
     expect(textOf(res)).toMatch(/expired/i);
+    expect(
+      readLog(ctx.config.auditLogPath).some((e) => e.event === 'place' && e.result === 'rejected'),
+    ).toBe(true);
   });
 });
 
@@ -164,6 +175,22 @@ describe('place_order — success path', () => {
     const { token } = ctx.tokens.issue(previewed());
     const res = await executePlace(ctx, token, { confirm: proceed });
     expect(res.isError).toBeFalsy();
+    const log = readLog(ctx.config.auditLogPath);
+    expect(log.filter((e) => e.event === 'place')).toHaveLength(1);
+    expect(log[0]?.result).toBe('ok');
+  });
+
+  it('does not report failure when the API returns a 200 with a null body (render is total)', async () => {
+    const transport: KalshiTransport = async (req) => {
+      if (req.url.includes('/portfolio/events/orders')) return { status: 200, json: null };
+      if (req.url.includes('/portfolio/positions')) return { status: 200, json: positions };
+      return { status: 404, json: {} };
+    };
+    const ctx = makeCtx({ transport });
+    const { token } = ctx.tokens.issue(previewed());
+    const res = await executePlace(ctx, token, { confirm: proceed });
+    expect(res.isError).toBeFalsy(); // a null body must not turn a placed order into a reported failure
+    expect(textOf(res)).toContain('order_id=(unknown)');
     const log = readLog(ctx.config.auditLogPath);
     expect(log.filter((e) => e.event === 'place')).toHaveLength(1);
     expect(log[0]?.result).toBe('ok');
@@ -303,5 +330,36 @@ describe('place_order — daily-cap TOCTOU (mutex)', () => {
     expect(textOf(rejected[0]!)).toMatch(/MAX_DAILY_USD/);
     expect(posts).toBe(1); // only the first ever hit the exchange
     expect(readLog(ctx.config.auditLogPath).filter((e) => e.result === 'ok')).toHaveLength(1);
+  });
+
+  it('the daily cap still holds when the audit log is UNWRITABLE (in-memory ledger backstop)', async () => {
+    let posts = 0;
+    const transport: KalshiTransport = async (req) => {
+      if (req.url.includes('/portfolio/events/orders')) {
+        posts += 1;
+        return { status: 200, json: { order_id: `ORD${posts}` } };
+      }
+      if (req.url.includes('/portfolio/positions'))
+        return { status: 200, json: { market_positions: [] } };
+      return { status: 404, json: {} };
+    };
+    let n = 0;
+    const tokens = new TokenStore({ now: () => 1000, genId: () => `TKN${++n}` });
+    // Unwritable path: appendAuditEntry fails (best-effort), so the cap can't rely on the log.
+    const ctx = makeCtx({
+      transport,
+      tokens,
+      auditLogPath: '/proc/hunch-nonexistent/audit.jsonl',
+      caps: { maxOrderUsd: 25, maxDailyUsd: 2, maxOpenExposureUsd: 250, disableLimits: false },
+    });
+    const t1 = ctx.tokens.issue(previewed()).token;
+    const t2 = ctx.tokens.issue(previewed()).token;
+
+    const r1 = await executePlace(ctx, t1, { confirm: proceed });
+    const r2 = await executePlace(ctx, t2, { confirm: proceed });
+    expect(r1.isError).toBeFalsy();
+    expect(r2.isError).toBe(true); // ledger remembers r1 even though the log couldn't be written
+    expect(textOf(r2)).toMatch(/MAX_DAILY_USD/);
+    expect(posts).toBe(1);
   });
 });
