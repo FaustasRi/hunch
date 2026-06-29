@@ -19,8 +19,14 @@ jobs:
       # Split out of `npm run verify` so the CI log pinpoints exactly which stage stalls.
       - run: npm run typecheck
       - run: npm run lint
-      # vitest completes the suite but never exits on this Linux runner (worker/
-      # esbuild teardown hang; it exits fine locally). test:ci runs vitest
-      # in-process and force-exits with the verdict. Honest: any failed test -> exit 1.
-      - run: npm run test:ci
+      # vitest streams per-file TAP results during the run but never exits on this
+      # Linux runner (teardown hang, before any reporter onFinished fires). Capture
+      # the streamed TAP, kill the zombie via timeout, then judge pass/fail from it.
+      # Honest: any `not ok` -> fail; an incomplete run -> fail (see scripts/check-tap.mjs).
+      - name: test
+        run: |
+          set +e
+          timeout 120 npx vitest run --reporter=tap > tap.out 2>&1
+          set -e
+          node scripts/check-tap.mjs tap.out
       - run: npm run build

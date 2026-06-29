@@ -35,7 +35,6 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:ci": "vitest run --reporter=default --reporter=./scripts/ci-reporter.mjs",
     "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --write .",
