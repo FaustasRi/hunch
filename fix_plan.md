@@ -11,7 +11,7 @@ For each item: implement → `npm run verify` green → commit (Conventional Com
 - [x] **M2 — Market reads: `search_markets`, `get_market_brief` + market resource.** Fixed-point helpers tested; order-book bids-only handling correct; brief aggregates rules+prices+depth+trend.
 - [x] **M3 — Portfolio reads: `get_positions`, `get_orders` + portfolio resource.** Exposure/status mapped; read uses legacy GET only.
 - [x] **M4 — Order translation + `preview_order` (no money).** Exhaustive 8-combo translation truth table (incl. NO→YES-leg inversion); caps reject-not-clamp; confirmation token issues + expires.
-- [ ] **M5 — `place_order` (token-gated) + `cancel_order` + `cancel_all_orders` + audit + confirm.** Mutation via V2 namespace only; refuses without valid token; audit log; demo smoke places+cancels.
+- [x] **M5 — `place_order` (token-gated) + `cancel_order` + `cancel_all_orders` + audit + confirm.** Mutation via V2 namespace only; refuses without valid token; audit log; demo smoke places+cancels.
 - [ ] **M6 — Context polish: server `instructions` + 3 prompts.** Domain primer + miscalibration caveat; `/analyze-market`, `/scan-opportunities`, `/review-positions`.
 - [ ] **M7 — Live-mode gate + safety review.** Demo default; live needs 2 acts, uncap needs 3rd; gating matrix tested; secret/cap/mutation audit passes.
 - [ ] **M8 — Distribution & docs.** `npx -y hunch-mcp` boots from `npm pack`; README Claude Code + Codex snippets correct; CONTRIBUTING. → `EXIT_SIGNAL`.
@@ -38,3 +38,4 @@ Clear it back to empty when the checkpoint is finished.
 - M2 ✅ fixedpoint helpers (round-trip + edge tested), `search_markets` (filters/paging/text), `get_market_brief` (two-sided book from bids-only, series-via-event trend), `kalshi://market/{ticker}` resource; 3 tools + 1 resource (724bf74).
 - M3 ✅ `get_positions` (signed→YES/NO, exposure/PnL, zero filtered), `get_orders` (legacy GET read, canonical outcome/book side + deprecated fallback, fill progress), `kalshi://portfolio` resource; 5 tools + 2 resources (4224ee2).
 - M4 ✅ `translateOrder` (8-combo truth table, NO→YES-leg mirror), cost-basis caps (reject-not-clamp), audit read+rolling-24h, single-use TTL token store, `preview_order` (issues token only if caps pass); 6 tools (d33e16f).
+- M5 ✅ V2 mutation module (create/cancel/batch-cancel, verified), audit writer, elicitation+token confirm, `place_order` (token-gated, re-checks caps, audits, idempotent COID), `cancel_order`, `cancel_all_orders`; gated demo integration test; 9 tools (7f5384a).
