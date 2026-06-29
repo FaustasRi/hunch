@@ -13,6 +13,7 @@ const order: PreviewedOrder = {
   v2: { ticker: 'T', side: 'bid', price: '0.16', count: '10', time_in_force: 'good_till_canceled' },
   costBasisCents: 160,
   env: 'demo',
+  clientOrderId: 'COID-1',
 };
 
 describe('TokenStore', () => {
@@ -43,5 +44,27 @@ describe('TokenStore', () => {
     const r = store.consume(token);
     expect(r.ok).toBe(false);
     expect(r.ok === false && r.error).toMatch(/expired/);
+  });
+
+  it('peek validates WITHOUT consuming; remove drops it (idempotent-retry support)', () => {
+    let n = 0;
+    const store = new TokenStore({ now: () => 1000, genId: () => `tok-${++n}` });
+    const { token } = store.issue(order);
+    // peek twice — both succeed (not consumed)
+    expect(store.peek(token).ok).toBe(true);
+    expect(store.peek(token).ok).toBe(true);
+    store.remove(token);
+    expect(store.peek(token).ok).toBe(false);
+  });
+
+  it('sweeps expired tokens on issue (no unbounded growth from abandoned previews)', () => {
+    let clock = 1000;
+    let n = 0;
+    const store = new TokenStore({ ttlMs: 5000, now: () => clock, genId: () => `tok-${++n}` });
+    const stale = store.issue(order).token;
+    clock = 1000 + 6000; // stale now expired
+    const fresh = store.issue(order).token; // issue() sweeps
+    expect(store.peek(stale).ok).toBe(false);
+    expect(store.peek(fresh).ok).toBe(true);
   });
 });

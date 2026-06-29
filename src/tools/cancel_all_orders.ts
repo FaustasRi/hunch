@@ -24,6 +24,18 @@ export async function executeCancelAll(ctx: ServerContext, deps: CancelAllDeps) 
   try {
     resting = await fetchOrders(ctx.client, { status: 'resting' });
   } catch (err) {
+    appendAuditEntry(
+      path,
+      makeAuditEntry(
+        {
+          event: 'cancel_all',
+          env: ctx.config.env,
+          result: 'error',
+          error: `list failed: ${toErrorMessage(err)}`,
+        },
+        now,
+      ),
+    );
     return errorResult(`Could not list resting orders: ${toErrorMessage(err)}`);
   }
   if (resting.length === 0) return textResult('No resting orders to cancel.');
@@ -31,7 +43,22 @@ export async function executeCancelAll(ctx: ServerContext, deps: CancelAllDeps) 
   const decision = await deps.confirm(
     `Kill switch: cancel ALL ${resting.length} resting order(s) in ${ctx.config.env}?`,
   );
-  if (!decision.proceed) return errorResult(`Kill switch aborted — ${decision.reason}.`);
+  if (!decision.proceed) {
+    appendAuditEntry(
+      path,
+      makeAuditEntry(
+        {
+          event: 'cancel_all',
+          env: ctx.config.env,
+          result: 'rejected',
+          count: resting.length,
+          error: `not confirmed: ${decision.reason}`,
+        },
+        now,
+      ),
+    );
+    return errorResult(`Kill switch aborted — ${decision.reason}.`);
+  }
 
   const ids = resting.map((o) => o.orderId);
   try {

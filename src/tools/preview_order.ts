@@ -6,6 +6,7 @@
  * place_order's job (M5), and it refuses without a token issued here.
  */
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ServerContext } from '../context.js';
 import { translateOrder, orderCostBasisCents, type ConversationalOrder } from './translate.js';
@@ -75,6 +76,7 @@ export async function buildPreview(
   const dailyPlacedCents = sumPlacedCostWithin24hCents(
     readAuditEntries(ctx.config.auditLogPath),
     now(),
+    ctx.config.env,
   );
 
   let openExposureCents = 0;
@@ -94,6 +96,8 @@ export async function buildPreview(
     v2,
     costBasisCents,
     env: ctx.config.env,
+    // Fixed now so a retry of place_order (same token) replays the same id → idempotent.
+    clientOrderId: randomUUID(),
     rationale: args.rationale,
   };
   return { previewed, dailyPlacedCents, openExposureCents, exposureNote, caps };

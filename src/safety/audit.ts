@@ -43,14 +43,20 @@ export function makeAuditEntry(
   return { ts: new Date(now()).toISOString(), ...fields };
 }
 
-/** Append one entry as a JSONL line. Creates the file (and parent dir) if needed. */
+/**
+ * Append one entry as a JSONL line (creates the file + parent dir if needed).
+ * Best-effort: a write failure is warned to STDERR and swallowed — losing one audit
+ * line to a disk error must never crash a trade or make a placed order report failure.
+ */
 export function appendAuditEntry(path: string, entry: AuditEntry): void {
   try {
     mkdirSync(dirname(path), { recursive: true });
-  } catch {
-    // Directory already exists (or is the cwd) — appendFileSync handles the rest.
+    appendFileSync(path, `${JSON.stringify(entry)}\n`, 'utf8');
+  } catch (err) {
+    console.error(
+      `[hunch] audit write failed (${path}): ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
-  appendFileSync(path, `${JSON.stringify(entry)}\n`, 'utf8');
 }
 
 /** Read all entries from the log. Missing file → []; malformed lines are skipped. */
@@ -71,13 +77,20 @@ export function readAuditEntries(path: string): AuditEntry[] {
 
 /**
  * Sum the cost basis (cents) of successfully PLACED orders within the last 24h.
- * Previews and rejections do not count — only money actually committed.
+ * Previews and rejections do not count — only money actually committed. When `env`
+ * is given, only that environment's placements count, so demo activity can't eat the
+ * live daily cap (and vice-versa).
  */
-export function sumPlacedCostWithin24hCents(entries: AuditEntry[], nowMs: number): number {
+export function sumPlacedCostWithin24hCents(
+  entries: AuditEntry[],
+  nowMs: number,
+  env?: KalshiEnv,
+): number {
   const cutoff = nowMs - DAY_MS;
   let total = 0;
   for (const e of entries) {
     if (e.event !== 'place' || e.result !== 'ok') continue;
+    if (env !== undefined && e.env !== env) continue;
     if (typeof e.costBasisCents !== 'number') continue;
     const t = Date.parse(e.ts);
     if (Number.isFinite(t) && t >= cutoff) total += e.costBasisCents;

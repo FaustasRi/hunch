@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { writeFileSync, rmSync } from 'node:fs';
+import { writeFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   readAuditEntries,
   sumPlacedCostWithin24hCents,
+  appendAuditEntry,
+  makeAuditEntry,
   type AuditEntry,
 } from '../src/safety/audit.js';
 
@@ -26,6 +28,47 @@ describe('sumPlacedCostWithin24hCents (rolling 24h)', () => {
 
   it('is zero with no entries', () => {
     expect(sumPlacedCostWithin24hCents([], NOW)).toBe(0);
+  });
+
+  it('scopes to the given env so demo and live do not share a daily total', () => {
+    const entries: AuditEntry[] = [
+      { ts: iso(1 * HOUR), event: 'place', env: 'demo', result: 'ok', costBasisCents: 1000 },
+      { ts: iso(1 * HOUR), event: 'place', env: 'live', result: 'ok', costBasisCents: 5000 },
+    ];
+    expect(sumPlacedCostWithin24hCents(entries, NOW, 'demo')).toBe(1000);
+    expect(sumPlacedCostWithin24hCents(entries, NOW, 'live')).toBe(5000);
+    expect(sumPlacedCostWithin24hCents(entries, NOW)).toBe(6000); // unscoped = both
+  });
+});
+
+describe('makeAuditEntry / appendAuditEntry (write side)', () => {
+  it('stamps an ISO ts from the injected clock and round-trips through the log', () => {
+    const entry = makeAuditEntry(
+      { event: 'place', env: 'demo', result: 'ok', costBasisCents: 160 },
+      () => NOW,
+    );
+    expect(entry.ts).toBe(new Date(NOW).toISOString());
+
+    // write into a NOT-yet-existing nested dir to exercise mkdirSync.
+    const path = join(mkdtempSync(join(tmpdir(), 'hunch-audit-')), 'nested', 'deep', 'audit.jsonl');
+    appendAuditEntry(path, entry);
+    appendAuditEntry(
+      path,
+      makeAuditEntry({ event: 'cancel', env: 'demo', result: 'ok', orderId: 'O1' }, () => NOW),
+    );
+    const back = readAuditEntries(path);
+    expect(back).toHaveLength(2);
+    expect(back[0]).toMatchObject({ event: 'place', result: 'ok', costBasisCents: 160 });
+    expect(back[1]).toMatchObject({ event: 'cancel', orderId: 'O1' });
+  });
+
+  it('never throws on an unwritable path (audit failure must not break a trade)', () => {
+    expect(() =>
+      appendAuditEntry(
+        '/proc/nonexistent/cannot/write.jsonl',
+        makeAuditEntry({ event: 'place', env: 'demo' }, () => NOW),
+      ),
+    ).not.toThrow();
   });
 });
 

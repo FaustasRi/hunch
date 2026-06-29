@@ -2,14 +2,17 @@
  * place_order — the only path that commits money. Structurally gated (ADR-0003):
  *   1. requires a valid, unexpired confirmation token from preview_order (no token →
  *      no trade; raw orders are refused);
- *   2. re-runs the caps with fresh daily/exposure (defense in depth);
- *   3. confirms via elicitation when the host supports it (token gate otherwise);
- *   4. places via the V2 namespace ONLY, with a client_order_id for idempotent retry;
- *   5. writes an audit entry for the outcome.
+ *   2. the whole read-spend → cap-check → POST → audit sequence runs under a mutex, so
+ *      concurrent placements can't both pass a near-limit daily cap (TOCTOU);
+ *   3. re-runs caps with fresh, env-scoped daily spend + open exposure;
+ *   4. confirms via elicitation when supported (token gate otherwise; never hangs);
+ *   5. places via the V2 namespace ONLY with the token's stable client_order_id;
+ *   6. consumes the token only on a RESOLVED outcome — an ambiguous POST failure keeps
+ *      the token so a retry replays the same client_order_id and Kalshi deduplicates;
+ *   7. writes an audit entry for every outcome (ok / rejected / error).
  * It places the order BOUND TO THE TOKEN verbatim, so it cannot drift from the preview.
  */
 import { z } from 'zod';
-import { randomUUID } from 'node:crypto';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ServerContext } from '../context.js';
 import type {
@@ -18,6 +21,7 @@ import type {
   SelfTradePrevention,
 } from '../kalshi/types.js';
 import { createOrderV2 } from '../kalshi/orders.js';
+import { KalshiApiError } from '../kalshi/client.js';
 import { fetchOpenExposureCents } from './get_positions.js';
 import { checkCaps } from '../safety/caps.js';
 import {
@@ -30,17 +34,28 @@ import {
 } from '../safety/audit.js';
 import type { PreviewedOrder } from '../safety/token.js';
 import { serverConfirmer, type Confirmer } from '../safety/confirm.js';
-import { parseFp } from '../kalshi/fixedpoint.js';
 import { textResult, errorResult, toErrorMessage } from '../mcp/result.js';
 
-// Default self-trade prevention: cancel the taker leg if it would cross our own
-// resting order (safest; a resting GTC order is unaffected). Required by V2 create.
+// Required by V2 create. taker_at_cross cancels the taker leg if it would cross our own
+// resting order (safest; a resting GTC order is unaffected).
 const STP: SelfTradePrevention = 'taker_at_cross';
 
 export interface PlaceDeps {
   confirm: Confirmer;
-  genClientOrderId?: () => string;
   now?: () => number;
+}
+
+/** A POST may have reached the exchange (network/5xx/429) → keep the token for an
+ * idempotent retry. A definite client-side rejection (4xx, missing creds) → burn it. */
+function isAmbiguousFailure(err: unknown): boolean {
+  if (err instanceof KalshiApiError) return err.status === 429 || err.status >= 500;
+  return true; // non-API error (e.g. network throw) — the request may have been sent
+}
+
+function safeFp(s: string | undefined): number | undefined {
+  if (typeof s !== 'string' || s.length === 0) return undefined;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : undefined;
 }
 
 function auditFields(
@@ -59,6 +74,7 @@ function auditFields(
     priceCents: c.priceCents,
     count: c.count,
     costBasisCents: order.costBasisCents,
+    clientOrderId: order.clientOrderId,
     rationale: order.rationale,
     ...extra,
   };
@@ -76,47 +92,62 @@ function confirmMessage(order: PreviewedOrder): string {
 function renderPlaced(
   order: PreviewedOrder,
   res: CreateOrderV2Response,
-  clientOrderId: string,
   via: 'elicitation' | 'implicit',
+  exposureNote: string | undefined,
 ): string {
   const c = order.conversational;
-  const filled = res.fill_count_fp ? parseFp(res.fill_count_fp) : res.fill_count;
-  const remaining = res.remaining_count_fp ? parseFp(res.remaining_count_fp) : res.remaining_count;
+  const filled = safeFp(res.fill_count_fp) ?? res.fill_count;
+  const remaining = safeFp(res.remaining_count_fp) ?? res.remaining_count;
   const fillLine =
     filled !== undefined || remaining !== undefined
       ? ` filled ${filled ?? 0}, remaining ${remaining ?? '?'}.`
       : '';
   const confirmNote =
     via === 'elicitation' ? '' : ' (no host confirm dialog; preview token was the gate)';
+  const expo = exposureNote ? `\nNote: ${exposureNote}` : '';
   return (
     `Order placed (${order.env}): ${c.action} ${c.side.toUpperCase()} ${c.priceCents}¢ ×${c.count} on ${c.ticker}.\n` +
-    `order_id=${res.order_id ?? '(unknown)'} client_order_id=${clientOrderId}.${fillLine}${confirmNote}`
+    `order_id=${res.order_id ?? '(unknown)'} client_order_id=${order.clientOrderId}.${fillLine}${confirmNote}${expo}`
   );
 }
 
-export async function executePlace(ctx: ServerContext, token: string, deps: PlaceDeps) {
+async function placeInner(ctx: ServerContext, token: string, deps: PlaceDeps) {
   const now = deps.now ?? Date.now;
-  const genClientOrderId = deps.genClientOrderId ?? randomUUID;
   const path = ctx.config.auditLogPath;
 
-  // 1. Token gate — single-use; no/expired token → no trade.
-  const consumed = ctx.tokens.consume(token);
-  if (!consumed.ok) return errorResult(consumed.error);
-  const order = consumed.order;
+  // 1. Token gate — validate WITHOUT consuming (so an ambiguous failure can retry).
+  const peeked = ctx.tokens.peek(token);
+  if (!peeked.ok) {
+    appendAuditEntry(
+      path,
+      makeAuditEntry(
+        { event: 'place', env: ctx.config.env, result: 'rejected', error: peeked.error },
+        now,
+      ),
+    );
+    return errorResult(peeked.error);
+  }
+  const order = peeked.order;
 
-  // 2. Re-check caps with fresh daily spend + open exposure.
-  const dailyPlacedCents = sumPlacedCostWithin24hCents(readAuditEntries(path), now());
+  // 2. Re-check caps with fresh, env-scoped daily spend + open exposure.
+  const dailyPlacedCents = sumPlacedCostWithin24hCents(
+    readAuditEntries(path),
+    now(),
+    ctx.config.env,
+  );
   let openExposureCents = 0;
+  let exposureNote: string | undefined;
   try {
     openExposureCents = await fetchOpenExposureCents(ctx.client);
-  } catch {
-    // Best-effort; if exposure is unreadable we still enforce order + daily caps.
+  } catch (err) {
+    exposureNote = `exposure cap not applied — positions unavailable (${toErrorMessage(err)})`;
   }
   const caps = checkCaps(
     { costBasisCents: order.costBasisCents, dailyPlacedCents, openExposureCents },
     ctx.config.caps,
   );
   if (!caps.ok) {
+    ctx.tokens.remove(token); // a capped order shouldn't be retryable as-is
     appendAuditEntry(
       path,
       makeAuditEntry(auditFields(order, 'rejected', { error: caps.violations.join('; ') }), now),
@@ -129,6 +160,7 @@ export async function executePlace(ctx: ServerContext, token: string, deps: Plac
   // 3. Confirm (elicitation if supported; otherwise the token was the gate).
   const decision = await deps.confirm(confirmMessage(order));
   if (!decision.proceed) {
+    ctx.tokens.remove(token);
     appendAuditEntry(
       path,
       makeAuditEntry(
@@ -139,30 +171,47 @@ export async function executePlace(ctx: ServerContext, token: string, deps: Plac
     return errorResult(`Order not placed — ${decision.reason}.`);
   }
 
-  // 4. Place via the V2 namespace only; idempotent via client_order_id.
-  const clientOrderId = genClientOrderId();
+  // 4. Place via the V2 namespace only, with the token's stable client_order_id.
   const body: CreateOrderBody = {
     ...order.v2,
-    client_order_id: clientOrderId,
+    client_order_id: order.clientOrderId,
     self_trade_prevention_type: STP,
   };
+  let res: CreateOrderV2Response;
   try {
-    const res = await createOrderV2(ctx.client, body);
-    appendAuditEntry(
-      path,
-      makeAuditEntry(auditFields(order, 'ok', { orderId: res.order_id, clientOrderId }), now),
-    );
-    return textResult(renderPlaced(order, res, clientOrderId, decision.via));
+    res = await createOrderV2(ctx.client, body);
   } catch (err) {
+    if (isAmbiguousFailure(err)) {
+      // Keep the token: the order MAY have landed; a retry replays the same id.
+      appendAuditEntry(
+        path,
+        makeAuditEntry(
+          auditFields(order, 'error', { error: `ambiguous: ${toErrorMessage(err)}` }),
+          now,
+        ),
+      );
+      return errorResult(
+        `Order may not have been placed (${toErrorMessage(err)}). It MAY have reached the exchange — ` +
+          `check get_orders. You can retry place_order with the SAME token; the client_order_id makes the retry idempotent.`,
+      );
+    }
+    ctx.tokens.remove(token); // definite rejection — burn it
     appendAuditEntry(
       path,
-      makeAuditEntry(
-        auditFields(order, 'error', { clientOrderId, error: toErrorMessage(err) }),
-        now,
-      ),
+      makeAuditEntry(auditFields(order, 'error', { error: toErrorMessage(err) }), now),
     );
-    return errorResult(`Order placement failed: ${toErrorMessage(err)}`);
+    return errorResult(`Order rejected by Kalshi: ${toErrorMessage(err)}`);
   }
+
+  // 5. Success — consume the token, audit ok, then render (render never throws).
+  ctx.tokens.remove(token);
+  appendAuditEntry(path, makeAuditEntry(auditFields(order, 'ok', { orderId: res.order_id }), now));
+  return textResult(renderPlaced(order, res, decision.via, exposureNote));
+}
+
+export function executePlace(ctx: ServerContext, token: string, deps: PlaceDeps) {
+  // Serialize placement so concurrent calls can't both pass a near-limit daily cap.
+  return ctx.placeLock.run(() => placeInner(ctx, token, deps));
 }
 
 export function register(server: McpServer, ctx: ServerContext): void {
@@ -182,7 +231,8 @@ export function register(server: McpServer, ctx: ServerContext): void {
           .min(1)
           .describe('Confirmation token from preview_order (short-lived, single-use).'),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+      // Money-committing → destructive, so hosts that highlight destructive actions flag it.
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     },
     async ({ token }) => {
       try {

@@ -7,12 +7,15 @@
 import type { Config } from './config.js';
 import { KalshiClient } from './kalshi/client.js';
 import { TokenStore } from './safety/token.js';
+import { Mutex } from './safety/mutex.js';
 
 export interface ServerContext {
   config: Config;
   client: KalshiClient;
-  /** Shared preview→place confirmation tokens (issued by preview_order, M4; consumed by place_order, M5). */
+  /** Shared preview→place confirmation tokens (issued by preview_order; consumed by place_order). */
   tokens: TokenStore;
+  /** Serializes placement so concurrent orders can't both pass a near-limit daily cap. */
+  placeLock: Mutex;
 }
 
 export function createContext(config: Config): ServerContext {
@@ -21,5 +24,5 @@ export function createContext(config: Config): ServerContext {
     apiKeyId: config.apiKeyId,
     privateKeyPem: config.privateKeyPem,
   });
-  return { config, client, tokens: new TokenStore() };
+  return { config, client, tokens: new TokenStore(), placeLock: new Mutex() };
 }

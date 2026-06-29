@@ -21,7 +21,22 @@ export async function executeCancel(ctx: ServerContext, orderId: string, deps: C
   const path = ctx.config.auditLogPath;
 
   const decision = await deps.confirm(`Cancel order ${orderId} (${ctx.config.env})?`);
-  if (!decision.proceed) return errorResult(`Cancel aborted — ${decision.reason}.`);
+  if (!decision.proceed) {
+    appendAuditEntry(
+      path,
+      makeAuditEntry(
+        {
+          event: 'cancel',
+          env: ctx.config.env,
+          result: 'rejected',
+          orderId,
+          error: `not confirmed: ${decision.reason}`,
+        },
+        now,
+      ),
+    );
+    return errorResult(`Cancel aborted — ${decision.reason}.`);
+  }
 
   try {
     const res = await cancelOrderV2(ctx.client, orderId);

@@ -23,16 +23,21 @@ export async function confirmWrite(server: McpServer, message: string): Promise<
   if (!supportsElicitation) return { proceed: true, via: 'implicit' };
 
   try {
-    const result = await server.server.elicitInput({
-      message,
-      requestedSchema: {
-        type: 'object',
-        properties: {
-          confirm: { type: 'boolean', description: 'Confirm and execute this action' },
+    const result = await server.server.elicitInput(
+      {
+        message,
+        requestedSchema: {
+          type: 'object',
+          properties: {
+            confirm: { type: 'boolean', description: 'Confirm and execute this action' },
+          },
+          required: ['confirm'],
         },
-        required: ['confirm'],
       },
-    });
+      // Bound the wait so a host that advertises elicitation but never replies cannot
+      // hang the tool call — on timeout we fall through to the catch (token/explicit gate).
+      { timeout: 120_000 },
+    );
     if (result.action === 'accept' && result.content?.confirm === true) {
       return { proceed: true, via: 'elicitation' };
     }
