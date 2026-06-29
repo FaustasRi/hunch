@@ -70,12 +70,39 @@ export interface KalshiOrderbookResponse {
   };
 }
 
+/**
+ * An event groups related markets and — unlike a market — carries the human-readable
+ * `title`, `category`, and `series_ticker`. This is the key to discovery/search: text
+ * lives on events, not markets. With `with_nested_markets=true`, `markets` is populated.
+ */
+export interface KalshiEvent {
+  event_ticker: string;
+  series_ticker?: string;
+  title?: string;
+  sub_title?: string;
+  category?: string;
+  mutually_exclusive?: boolean;
+  markets?: KalshiMarket[];
+}
+
 export interface KalshiEventResponse {
-  event?: {
-    event_ticker?: string;
-    series_ticker?: string;
-    title?: string;
-  };
+  event?: KalshiEvent;
+}
+
+export interface KalshiEventsResponse {
+  events?: KalshiEvent[];
+  cursor?: string;
+}
+
+export interface KalshiSeries {
+  ticker?: string;
+  title?: string;
+  category?: string;
+  frequency?: string;
+}
+
+export interface KalshiSeriesResponse {
+  series?: KalshiSeries;
 }
 
 /** One candlestick (a subset — we only need the trade-price close for trend). */

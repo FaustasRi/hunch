@@ -61,6 +61,8 @@ AI host (Claude Code / Codex)
 Reads: `search_markets`, `get_market_brief`, `get_balance`, `get_positions`, `get_orders`, `preview_order`.
 Writes: `place_order`, `cancel_order`, `cancel_all_orders`.
 
+**Discovery is event-based.** Kalshi has no server-side text search and there are 10,000+ open markets, and a **market carries no title/category/series** — only the **event** does. So `search_markets`' free-text mode searches/ranks **events** (by title + series + category), then expands the best events into concrete markets; it also browses by `category` and drills in by `event_ticker`/`series_ticker`. A literal one-page market scan (the v1 approach) silently missed almost everything (e.g. "bitcoin" → 0 hits while 58 bitcoin events existed). See `src/kalshi/discovery.ts` + `src/tools/search_markets.ts`.
+
 **The preview→place contract:** `preview_order` is read-only — it validates the intended order, computes worst-case cost / exposure-after, runs the cap check, and returns an **opaque confirmation token** (bound to the exact order params, short TTL). `place_order` **requires a valid, unexpired token** and refuses raw orders. This makes an un-previewed live trade structurally impossible.
 
 ### Safety harness — see [ADR-0003](docs/adr/0003-safety-harness.md)

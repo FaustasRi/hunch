@@ -1,0 +1,40 @@
+{
+  "events": [
+    {
+      "event_ticker": "KXBTCD-28DEC08",
+      "series_ticker": "KXBTCD",
+      "category": "Crypto",
+      "title": "Bitcoin price on Dec 8, 2028 at 5pm EST?",
+      "sub_title": "BTC/USD"
+    },
+    {
+      "event_ticker": "KXBTCD-28DEC09",
+      "series_ticker": "KXBTCD",
+      "category": "Crypto",
+      "title": "Bitcoin price on Dec 9, 2028 at 5pm EST?",
+      "sub_title": "BTC/USD"
+    },
+    {
+      "event_ticker": "KXFED-26MAR",
+      "series_ticker": "KXFED",
+      "category": "Economics",
+      "title": "Fed interest rate decision in March 2026",
+      "sub_title": "FOMC"
+    },
+    {
+      "event_ticker": "KXTEMPNYC-26JUN29",
+      "series_ticker": "KXTEMPNYC",
+      "category": "Climate and Weather",
+      "title": "High temperature in NYC today",
+      "sub_title": "NYC temperature"
+    },
+    {
+      "event_ticker": "KXBTC-RANGE",
+      "series_ticker": "KXBTC",
+      "category": "Crypto",
+      "title": "Bitcoin weekly trading range",
+      "sub_title": "BTC"
+    }
+  ],
+  "cursor": ""
+}

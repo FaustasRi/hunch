@@ -1,0 +1,23 @@
+{
+  "markets": [
+    {
+      "ticker": "KXBTCD-28DEC08-T100000",
+      "event_ticker": "KXBTCD-28DEC08",
+      "status": "active",
+      "yes_sub_title": "Above $100,000",
+      "yes_bid_dollars": "0.40",
+      "yes_ask_dollars": "0.43",
+      "volume_fp": "1200.00"
+    },
+    {
+      "ticker": "KXBTCD-28DEC08-T110000",
+      "event_ticker": "KXBTCD-28DEC08",
+      "status": "active",
+      "yes_sub_title": "Above $110,000",
+      "yes_bid_dollars": "0.20",
+      "yes_ask_dollars": "0.23",
+      "volume_fp": "800.00"
+    }
+  ],
+  "cursor": ""
+}
