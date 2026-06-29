@@ -26,8 +26,11 @@ jobs:
       # Honest: any failure marker -> fail; incomplete run -> fail (scripts/check-tests.mjs).
       - name: test
         run: |
-          set +e
-          timeout 120 npx vitest run > test.out 2>&1
-          set -e
+          # vitest streams per-file lines to a PIPE (not a file redirect) on this
+          # runner, then hangs on teardown. `tee` keeps stdout a pipe so the lines
+          # stream, and mirrors them to test.out. `set +e +o pipefail` stops the
+          # timeout-kill (exit 124) from aborting before the parser runs.
+          set +e +o pipefail
+          timeout 120 npx vitest run 2>&1 | tee test.out
           node scripts/check-tests.mjs test.out
       - run: npm run build
