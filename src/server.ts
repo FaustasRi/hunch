@@ -6,6 +6,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { loadConfig } from './config.js';
 import { createContext } from './context.js';
 import { register as registerGetBalance } from './tools/get_balance.js';
+import { register as registerSearchMarkets } from './tools/search_markets.js';
+import { register as registerGetMarketBrief } from './tools/get_market_brief.js';
+import { register as registerMarketResource } from './resources/market.js';
 
 const NAME = 'hunch';
 const VERSION = '0.0.0';
@@ -29,7 +32,9 @@ export function createServer(): McpServer {
 
   // Registration wired up across checkpoints:
   registerGetBalance(server, ctx);
-  //   M2: registerSearchMarkets / registerGetMarketBrief / market resource
+  registerSearchMarkets(server, ctx);
+  registerGetMarketBrief(server, ctx);
+  registerMarketResource(server, ctx);
   //   M3: registerGetPositions / registerGetOrders / portfolio resource
   //   M4: registerPreviewOrder
   //   M5: registerPlaceOrder / registerCancelOrder / registerCancelAllOrders

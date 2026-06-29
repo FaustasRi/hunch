@@ -1,0 +1,8 @@
+{
+  "ticker": "KXBTCD-25JAN0117-T103000",
+  "candlesticks": [
+    { "end_period_ts": 1735000000, "price": { "close_dollars": "0.12" }, "volume_fp": "300.00" },
+    { "end_period_ts": 1735086400, "price": { "close_dollars": "0.14" }, "volume_fp": "420.00" },
+    { "end_period_ts": 1735172800, "price": { "close_dollars": "0.16" }, "volume_fp": "510.00" }
+  ]
+}

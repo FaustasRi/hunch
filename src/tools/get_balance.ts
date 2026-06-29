@@ -7,6 +7,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ServerContext } from '../context.js';
 import type { KalshiClient } from '../kalshi/client.js';
 import type { KalshiBalanceResponse } from '../kalshi/types.js';
+import { centsToUsd } from '../kalshi/fixedpoint.js';
 import { textResult, errorResult, toErrorMessage } from '../mcp/result.js';
 
 export interface AccountBalance {
@@ -17,11 +18,6 @@ export interface AccountBalance {
   portfolioValueUsd: string | undefined;
   /** Cash + position value, when position value is present. */
   totalUsd: string | undefined;
-}
-
-/** Format integer cents as a 2-decimal USD string. Exact (cents are integers). */
-function centsToUsd(cents: number): string {
-  return (cents / 100).toFixed(2);
 }
 
 export function normalizeBalance(raw: KalshiBalanceResponse): AccountBalance {
