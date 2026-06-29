@@ -19,16 +19,8 @@ jobs:
       # Split out of `npm run verify` so the CI log pinpoints exactly which stage stalls.
       - run: npm run typecheck
       - run: npm run lint
-      # vitest passes the whole suite but does not exit in this Linux CI env
-      # (worker/esbuild teardown hangs; it exits fine locally). Gate on its JSON
-      # result and don't wait for the hang. Honest: a real failure -> success:false -> exit 1.
-      - name: test
-        run: |
-          set -uo pipefail
-          npx vitest run --reporter=default --reporter=json --outputFile=vitest-results.json &
-          VPID=$!
-          for _ in $(seq 1 150); do [ -s vitest-results.json ] && break; sleep 2; done
-          if [ ! -s vitest-results.json ]; then echo "::error::vitest produced no results"; kill "$VPID" 2>/dev/null || true; exit 1; fi
-          sleep 2; kill "$VPID" 2>/dev/null || true
-          node -e "const r=require('./vitest-results.json'); if(!r.success){process.exit(1)}; console.log('vitest passed', r.numTotalTests, 'tests')"
+      # vitest completes the suite but never exits on this Linux runner (worker/
+      # esbuild teardown hang; it exits fine locally). test:ci runs vitest
+      # in-process and force-exits with the verdict. Honest: any failed test -> exit 1.
+      - run: npm run test:ci
       - run: npm run build
