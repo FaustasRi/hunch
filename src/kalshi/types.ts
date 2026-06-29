@@ -4,11 +4,20 @@
  * surface uses fixed-point dollar STRINGS (e.g. "0.1500") and *_fp counts.
  */
 
-export interface KalshiBalance {
-  /** Cash balance in cents (integer). */
+/**
+ * GET /portfolio/balance. Kalshi returns BOTH integer cents and a fixed-point
+ * dollar string. `portfolio_value` is the cents value of all open positions.
+ * (Verified against docs.kalshi.com → api-reference/portfolio/get-balance.)
+ */
+export interface KalshiBalanceResponse {
+  /** Available cash, in cents (integer). */
   balance: number;
-  // TODO(M1): add balance dollar-string + portfolio value fields per
-  //   GET /portfolio/balance.
+  /** Available cash as a fixed-point dollar string, e.g. "1000.00". */
+  balance_dollars?: string;
+  /** Current value of all open positions, in cents. */
+  portfolio_value?: number;
+  /** Unix timestamp (seconds) of the last update. */
+  updated_ts?: number;
 }
 
 // TODO(M2): Market, Event, Series, OrderBook, Candlestick.
