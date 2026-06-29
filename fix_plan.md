@@ -6,7 +6,7 @@ For each item: implement → `npm run verify` green → commit (Conventional Com
 
 **EXIT:** when every box below is `[x]`, print `EXIT_SIGNAL: hunch v1 complete` and stop. Do not invent new work.
 
-- [ ] **M0 — Skeleton boots & CI green.** No-op MCP server over stdio; `npm run verify` green; Inspector connects; registers in Claude Code.
+- [x] **M0 — Skeleton boots & CI green.** No-op MCP server over stdio; `npm run verify` green; Inspector connects; registers in Claude Code.
 - [ ] **M1 — Kalshi client + RSA-PSS auth + `get_balance`.** Signed requests to demo; signer unit-tested; balance via mock (+ optional demo smoke).
 - [ ] **M2 — Market reads: `search_markets`, `get_market_brief` + market resource.** Fixed-point helpers tested; order-book bids-only handling correct; brief aggregates rules+prices+depth+trend.
 - [ ] **M3 — Portfolio reads: `get_positions`, `get_orders` + portfolio resource.** Exposure/status mapped; read uses legacy GET only.
@@ -33,3 +33,4 @@ Clear it back to empty when the checkpoint is finished.
 <!-- Append one line per checkpoint as you complete it, newest last. e.g.:
 - M0 ✅ <short note> (<commit sha>)
 -->
+- M0 ✅ Skeleton verified: scaffold (index.ts/server.ts/smoke.test.ts/ci.yml) boots over stdio, `initialize` handshake returns serverInfo+instructions, `npm run verify` green, CI runs `npm ci && npm run verify` (9045cd2).
