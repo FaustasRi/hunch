@@ -8,6 +8,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 10 # fail fast instead of hanging up to GitHub's 6h default
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,4 +16,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run verify
+      # Split out of `npm run verify` so the CI log pinpoints exactly which stage stalls.
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
