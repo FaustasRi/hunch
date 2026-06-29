@@ -177,11 +177,15 @@ function truncate(s: string): string {
   return s.length > MAX_DETAIL_LEN ? `${s.slice(0, MAX_DETAIL_LEN)}…` : s;
 }
 
+/** Max wall-clock for one Kalshi request before aborting (live path only). */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 /** Default transport over global fetch (Node 20+). Never used in unit tests. */
 const fetchTransport: KalshiTransport = async (req) => {
   const res = await fetch(req.url, {
     method: req.method,
     headers: req.headers,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     ...(req.body === undefined ? {} : { body: req.body }),
   });
   const text = await res.text();
