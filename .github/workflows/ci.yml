@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24 # node 20 hung vitest teardown after the suite passed (and is GH-deprecated)
           cache: npm
       - run: npm ci
       # Split out of `npm run verify` so the CI log pinpoints exactly which stage stalls.
