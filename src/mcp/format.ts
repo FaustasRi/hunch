@@ -2,7 +2,7 @@
  * Display formatting shared across tools. Deterministic (no ICU/locale dependency)
  * so rendered output is stable in tests and across machines.
  */
-import { parseFp } from '../kalshi/fixedpoint.js';
+import { parseFp, parseDollarString } from '../kalshi/fixedpoint.js';
 
 /** Group a non-negative integer with thousands separators: 12340 → "12,340". */
 export function groupThousands(n: number): string {
@@ -19,4 +19,9 @@ export function fmtCount(fp: string): string {
 /** Format integer cents as a probability price: 16 → "16¢". */
 export function fmtCentsPrice(cents: number): string {
   return `${cents}¢`;
+}
+
+/** Format a fixed-point dollar string as a 2-decimal amount: "12.5000" → "12.50". */
+export function fmtDollars(dollarString: string): string {
+  return parseDollarString(dollarString).toFixed(2);
 }

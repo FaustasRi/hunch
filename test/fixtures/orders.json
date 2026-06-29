@@ -1,0 +1,35 @@
+{
+  "orders": [
+    {
+      "order_id": "ord_resting_1",
+      "client_order_id": "cli-1",
+      "ticker": "KXBTCD-25JAN0117-T103000",
+      "outcome_side": "yes",
+      "book_side": "bid",
+      "type": "limit",
+      "status": "resting",
+      "yes_price_dollars": "0.16",
+      "no_price_dollars": "0.84",
+      "initial_count_fp": "10.00",
+      "fill_count_fp": "0.00",
+      "remaining_count_fp": "10.00",
+      "created_time": "2026-06-29T12:00:00Z",
+      "time_in_force": "good_till_canceled"
+    },
+    {
+      "order_id": "ord_done_2",
+      "ticker": "KXFED-26MAR-CUT",
+      "outcome_side": "no",
+      "book_side": "bid",
+      "type": "limit",
+      "status": "executed",
+      "yes_price_dollars": "0.70",
+      "no_price_dollars": "0.30",
+      "initial_count_fp": "4.00",
+      "fill_count_fp": "4.00",
+      "remaining_count_fp": "0.00",
+      "created_time": "2026-06-28T09:30:00Z"
+    }
+  ],
+  "cursor": ""
+}

@@ -95,7 +95,62 @@ export interface KalshiCandlesticksResponse {
   candlesticks?: KalshiCandlestick[];
 }
 
-// TODO(M3): Position, Order.
+/**
+ * GET /portfolio/positions → { market_positions, event_positions, cursor }.
+ * `position_fp` is a SIGNED contract count (positive = long YES, negative = long NO).
+ * Money fields are fixed-point dollar strings. (docs → portfolio/get-positions.)
+ */
+export interface KalshiMarketPosition {
+  ticker: string;
+  position_fp?: string;
+  market_exposure_dollars?: string;
+  realized_pnl_dollars?: string;
+  total_traded_dollars?: string;
+  fees_paid_dollars?: string;
+  resting_orders_count?: number;
+  last_updated_ts?: string;
+}
+
+export interface KalshiPositionsResponse {
+  market_positions?: KalshiMarketPosition[];
+  event_positions?: unknown[];
+  cursor?: string;
+}
+
+/**
+ * GET /portfolio/orders (the legacy READ path — still valid; mutation does NOT go
+ * here, see ADR-0004). `outcome_side` (yes/no) + `book_side` (bid/ask) are the
+ * canonical direction fields; `side`/`action` are deprecated fallbacks. Prices are
+ * fixed-point dollar strings; counts are `_fp` strings. (docs → orders/get-orders.)
+ */
+export type OutcomeSide = 'yes' | 'no';
+export type BookSide = 'bid' | 'ask';
+export type OrderStatus = 'resting' | 'canceled' | 'executed';
+
+export interface KalshiOrder {
+  order_id: string;
+  client_order_id?: string;
+  ticker: string;
+  outcome_side?: OutcomeSide;
+  book_side?: BookSide;
+  /** @deprecated use outcome_side */ side?: OutcomeSide;
+  /** @deprecated use book_side */ action?: 'buy' | 'sell';
+  type?: string;
+  status?: string;
+  yes_price_dollars?: string;
+  no_price_dollars?: string;
+  initial_count_fp?: string;
+  fill_count_fp?: string;
+  remaining_count_fp?: string;
+  created_time?: string;
+  time_in_force?: string;
+}
+
+export interface KalshiOrdersResponse {
+  orders?: KalshiOrder[];
+  cursor?: string;
+}
+
 // TODO(M4): CreateOrderV2Request { ticker; side: 'bid' | 'ask'; price: string;
 //   count: string; time_in_force: 'good_till_canceled' | 'immediate_or_cancel'
 //   | 'fill_or_kill'; self_trade_prevention_type; client_order_id; ... }.

@@ -8,7 +8,10 @@ import { createContext } from './context.js';
 import { register as registerGetBalance } from './tools/get_balance.js';
 import { register as registerSearchMarkets } from './tools/search_markets.js';
 import { register as registerGetMarketBrief } from './tools/get_market_brief.js';
+import { register as registerGetPositions } from './tools/get_positions.js';
+import { register as registerGetOrders } from './tools/get_orders.js';
 import { register as registerMarketResource } from './resources/market.js';
+import { register as registerPortfolioResource } from './resources/portfolio.js';
 
 const NAME = 'hunch';
 const VERSION = '0.0.0';
@@ -34,8 +37,10 @@ export function createServer(): McpServer {
   registerGetBalance(server, ctx);
   registerSearchMarkets(server, ctx);
   registerGetMarketBrief(server, ctx);
+  registerGetPositions(server, ctx);
+  registerGetOrders(server, ctx);
   registerMarketResource(server, ctx);
-  //   M3: registerGetPositions / registerGetOrders / portfolio resource
+  registerPortfolioResource(server, ctx);
   //   M4: registerPreviewOrder
   //   M5: registerPlaceOrder / registerCancelOrder / registerCancelAllOrders
   //   M6: prompts

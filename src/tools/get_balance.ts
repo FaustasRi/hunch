@@ -42,7 +42,7 @@ export async function fetchBalance(client: KalshiClient): Promise<AccountBalance
   return normalizeBalance(raw);
 }
 
-function renderBalance(b: AccountBalance, env: string): string {
+export function renderBalance(b: AccountBalance, env: string): string {
   const lines = [`Account balance (${env}):`, `  Cash available: $${b.cashUsd}`];
   if (b.portfolioValueUsd !== undefined && b.totalUsd !== undefined) {
     lines.push(`  Position value: $${b.portfolioValueUsd}`);
