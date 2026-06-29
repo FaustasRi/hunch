@@ -6,7 +6,7 @@
 
 > _A hunch, not a certainty._ Hunch surfaces the market price, the news, and the base rate, then executes the bet **you** decide on — with hard guardrails and a paper-money default. It does **not** try to pick winners for you (see [Why Hunch won't autopick](#why-hunch-wont-autopick)).
 
-> 🚧 **Status: in active build.** This repository is scaffolded and built incrementally by a **stateless autonomous agent loop** — each iteration orients from the repo, completes one checkpoint, and hands off via git. The loop prompt is [`LOOP.md`](LOOP.md); the plan is [`docs/PLAN.md`](docs/PLAN.md); progress is [`fix_plan.md`](fix_plan.md). CI on every push, CD to npm on version tags.
+> ✅ **Status: v1 feature-complete** (pending first npm release). The full surface — 9 tools, 2 resources, 3 prompts, RSA-PSS auth, the preview→token→place safety harness, caps, and the audit log — is built and green. It was built incrementally by a **stateless autonomous agent loop**: each iteration oriented from the repo, completed one checkpoint, and handed off via git (loop prompt [`LOOP.md`](LOOP.md), plan [`docs/PLAN.md`](docs/PLAN.md), progress [`fix_plan.md`](fix_plan.md)). CI on every push; CD publishes to npm on a version tag (see [`docs/RELEASING.md`](docs/RELEASING.md)).
 
 Hunch is an [MCP](https://modelcontextprotocol.io) server. It exposes Kalshi as a small, safe set of tools your AI coding agent can call — so you can have a normal conversation:
 
@@ -57,7 +57,7 @@ env = { KALSHI_ENV = "demo" }
 
 Credentials go in the environment or macOS Keychain — never in these files. See [`.env.example`](.env.example) and [`AGENTS.md`](AGENTS.md).
 
-To actually trade (even demo), you need a Kalshi **demo** account + API key — a one-time, ~2-minute setup documented in [`docs/PLAN.md`](docs/PLAN.md).
+To actually trade (even demo), you need a Kalshi **demo** account + API key — a one-time, ~2-minute setup walked through in [`docs/DEMO.md`](docs/DEMO.md), which also doubles as the end-to-end demo script.
 
 ## Tools
 
