@@ -27,3 +27,4 @@ audit-log*.jsonl
 
 # test coverage
 coverage/
+vitest-results.json
