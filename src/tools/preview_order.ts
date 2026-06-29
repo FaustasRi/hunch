@@ -94,6 +94,7 @@ export async function buildPreview(
     v2,
     costBasisCents,
     env: ctx.config.env,
+    rationale: args.rationale,
   };
   return { previewed, dailyPlacedCents, openExposureCents, exposureNote, caps };
 }

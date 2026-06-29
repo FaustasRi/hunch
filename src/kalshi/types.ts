@@ -151,6 +151,70 @@ export interface KalshiOrdersResponse {
   cursor?: string;
 }
 
-// TODO(M4): CreateOrderV2Request { ticker; side: 'bid' | 'ask'; price: string;
-//   count: string; time_in_force: 'good_till_canceled' | 'immediate_or_cancel'
-//   | 'fill_or_kill'; self_trade_prevention_type; client_order_id; ... }.
+// ── Order domain (translation + mutation) ────────────────────────────────────
+// The conversational order (what the user expresses) and the YES-leg-only V2 wire
+// shape it maps to. The mapping logic lives in tools/translate.ts; these are the
+// shapes. V2 create is YES-leg-only and self_trade_prevention_type is REQUIRED
+// (verified against docs → orders/create-order-v2).
+
+export type OrderAction = 'buy' | 'sell';
+export type OrderTif = 'limit' | 'market';
+export type TimeInForce = 'good_till_canceled' | 'immediate_or_cancel' | 'fill_or_kill';
+export type SelfTradePrevention = 'taker_at_cross' | 'maker';
+
+/** Price is in the NAMED side's terms (NO @30¢ → priceCents 30); side is yes/no. */
+export interface ConversationalOrder {
+  ticker: string;
+  action: OrderAction;
+  side: OutcomeSide;
+  priceCents: number;
+  count: number;
+  tif: OrderTif;
+}
+
+/** Core V2 create fields (client_order_id + self_trade_prevention_type added at placement). */
+export interface V2OrderRequest {
+  ticker: string;
+  side: BookSide;
+  price: string;
+  count: string;
+  time_in_force: TimeInForce;
+}
+
+/** Full POST /portfolio/events/orders body. */
+export interface CreateOrderBody extends V2OrderRequest {
+  client_order_id: string;
+  self_trade_prevention_type: SelfTradePrevention;
+}
+
+/** POST /portfolio/events/orders response — order fields returned at top level (not wrapped). */
+export interface CreateOrderV2Response {
+  order_id?: string;
+  client_order_id?: string;
+  fill_count?: number;
+  remaining_count?: number;
+  fill_count_fp?: string;
+  remaining_count_fp?: string;
+  ts_ms?: number;
+  status?: string;
+}
+
+/** DELETE /portfolio/events/orders/{order_id} response. */
+export interface CancelOrderV2Response {
+  order_id?: string;
+  client_order_id?: string;
+  /** Contracts cancelled (the remaining count at cancel time), fixed-point string. */
+  reduced_by?: string;
+  ts_ms?: number;
+}
+
+/** DELETE /portfolio/events/orders/batched response. */
+export interface BatchCancelV2Response {
+  orders?: Array<{
+    order_id?: string;
+    client_order_id?: string;
+    reduced_by?: string;
+    ts_ms?: number;
+    error?: unknown;
+  }>;
+}

@@ -11,6 +11,9 @@ import { register as registerGetMarketBrief } from './tools/get_market_brief.js'
 import { register as registerGetPositions } from './tools/get_positions.js';
 import { register as registerGetOrders } from './tools/get_orders.js';
 import { register as registerPreviewOrder } from './tools/preview_order.js';
+import { register as registerPlaceOrder } from './tools/place_order.js';
+import { register as registerCancelOrder } from './tools/cancel_order.js';
+import { register as registerCancelAllOrders } from './tools/cancel_all_orders.js';
 import { register as registerMarketResource } from './resources/market.js';
 import { register as registerPortfolioResource } from './resources/portfolio.js';
 
@@ -41,9 +44,11 @@ export function createServer(): McpServer {
   registerGetPositions(server, ctx);
   registerGetOrders(server, ctx);
   registerPreviewOrder(server, ctx);
+  registerPlaceOrder(server, ctx);
+  registerCancelOrder(server, ctx);
+  registerCancelAllOrders(server, ctx);
   registerMarketResource(server, ctx);
   registerPortfolioResource(server, ctx);
-  //   M5: registerPlaceOrder / registerCancelOrder / registerCancelAllOrders
   //   M6: prompts
 
   return server;

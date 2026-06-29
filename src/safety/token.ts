@@ -17,6 +17,8 @@ export interface PreviewedOrder {
   v2: V2OrderRequest;
   costBasisCents: number;
   env: KalshiEnv;
+  /** Optional reasoning carried from preview into the placement audit entry. */
+  rationale?: string | undefined;
 }
 
 export interface IssuedToken {

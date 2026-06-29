@@ -6,9 +6,10 @@
  * tools to record entries. Keeping the format + reader here lets caps.ts stay pure
  * (it takes the already-summed number) while preview_order sources it from the log.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import type { KalshiEnv } from '../config.js';
-import type { OrderAction, OrderSide } from '../tools/translate.js';
+import type { OrderAction, OutcomeSide } from '../kalshi/types.js';
 
 export type AuditEvent = 'preview' | 'place' | 'cancel' | 'cancel_all' | 'fill';
 export type AuditResult = 'ok' | 'rejected' | 'error';
@@ -18,21 +19,39 @@ export interface AuditEntry {
   ts: string;
   event: AuditEvent;
   env: KalshiEnv;
-  result?: AuditResult;
-  ticker?: string;
-  action?: OrderAction;
-  side?: OrderSide;
-  priceCents?: number;
-  count?: number;
+  result?: AuditResult | undefined;
+  ticker?: string | undefined;
+  action?: OrderAction | undefined;
+  side?: OutcomeSide | undefined;
+  priceCents?: number | undefined;
+  count?: number | undefined;
   /** Max loss of the order, in cents — what the daily/exposure caps accumulate. */
-  costBasisCents?: number;
-  orderId?: string;
-  clientOrderId?: string;
-  rationale?: string;
-  error?: string;
+  costBasisCents?: number | undefined;
+  orderId?: string | undefined;
+  clientOrderId?: string | undefined;
+  rationale?: string | undefined;
+  error?: string | undefined;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Build an entry, stamping `ts` with the current time. */
+export function makeAuditEntry(
+  fields: Omit<AuditEntry, 'ts'>,
+  now: () => number = Date.now,
+): AuditEntry {
+  return { ts: new Date(now()).toISOString(), ...fields };
+}
+
+/** Append one entry as a JSONL line. Creates the file (and parent dir) if needed. */
+export function appendAuditEntry(path: string, entry: AuditEntry): void {
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+  } catch {
+    // Directory already exists (or is the cwd) — appendFileSync handles the rest.
+  }
+  appendFileSync(path, `${JSON.stringify(entry)}\n`, 'utf8');
+}
 
 /** Read all entries from the log. Missing file → []; malformed lines are skipped. */
 export function readAuditEntries(path: string): AuditEntry[] {

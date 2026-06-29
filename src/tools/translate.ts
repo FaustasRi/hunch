@@ -13,31 +13,16 @@
  * trade the opposite side — hence the exhaustive truth-table test.
  */
 import { centsToUsd, formatCount } from '../kalshi/fixedpoint.js';
+import type { BookSide, ConversationalOrder, V2OrderRequest } from '../kalshi/types.js';
 
-export type OrderAction = 'buy' | 'sell';
-export type OrderSide = 'yes' | 'no';
-export type OrderTif = 'limit' | 'market';
-export type BookSide = 'bid' | 'ask';
-export type TimeInForce = 'good_till_canceled' | 'immediate_or_cancel' | 'fill_or_kill';
-
-/** A conversational order: price is in the named side's terms (NO @30¢ → priceCents 30). */
-export interface ConversationalOrder {
-  ticker: string;
-  action: OrderAction;
-  side: OrderSide;
-  priceCents: number;
-  count: number;
-  tif: OrderTif;
-}
-
-/** The core V2 wire shape (client_order_id + self_trade_prevention_type added at placement). */
-export interface V2OrderRequest {
-  ticker: string;
-  side: BookSide;
-  price: string;
-  count: string;
-  time_in_force: TimeInForce;
-}
+// The order vocabulary lives in kalshi/types.ts (the wire layer); re-exported here so
+// callers can import the conversational shapes alongside the translation functions.
+export type {
+  OrderAction,
+  OrderTif,
+  ConversationalOrder,
+  V2OrderRequest,
+} from '../kalshi/types.js';
 
 function assertValid(o: ConversationalOrder): void {
   if (!Number.isInteger(o.priceCents) || o.priceCents < 1 || o.priceCents > 99) {
