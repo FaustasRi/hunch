@@ -28,4 +28,4 @@ audit-log*.jsonl
 # test coverage
 coverage/
 vitest-results.json
-tap.out
+test.out

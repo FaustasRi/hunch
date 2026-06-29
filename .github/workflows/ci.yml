@@ -19,14 +19,15 @@ jobs:
       # Split out of `npm run verify` so the CI log pinpoints exactly which stage stalls.
       - run: npm run typecheck
       - run: npm run lint
-      # vitest streams per-file TAP results during the run but never exits on this
-      # Linux runner (teardown hang, before any reporter onFinished fires). Capture
-      # the streamed TAP, kill the zombie via timeout, then judge pass/fail from it.
-      # Honest: any `not ok` -> fail; an incomplete run -> fail (see scripts/check-tap.mjs).
+      # vitest streams a per-file result line (default reporter) during the run but
+      # never exits on this Linux runner (teardown hang, before the final summary /
+      # any reporter onFinished; tap/json/custom reporters emit nothing here). Capture
+      # the streamed output, kill the zombie via timeout, then judge from it.
+      # Honest: any failure marker -> fail; incomplete run -> fail (scripts/check-tests.mjs).
       - name: test
         run: |
           set +e
-          timeout 120 npx vitest run --reporter=tap > tap.out 2>&1
+          timeout 120 npx vitest run > test.out 2>&1
           set -e
-          node scripts/check-tap.mjs tap.out
+          node scripts/check-tests.mjs test.out
       - run: npm run build
