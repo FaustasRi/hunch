@@ -8,7 +8,7 @@ For each item: implement → `npm run verify` green → commit (Conventional Com
 
 - [x] **M0 — Skeleton boots & CI green.** No-op MCP server over stdio; `npm run verify` green; Inspector connects; registers in Claude Code.
 - [x] **M1 — Kalshi client + RSA-PSS auth + `get_balance`.** Signed requests to demo; signer unit-tested; balance via mock (+ optional demo smoke).
-- [ ] **M2 — Market reads: `search_markets`, `get_market_brief` + market resource.** Fixed-point helpers tested; order-book bids-only handling correct; brief aggregates rules+prices+depth+trend.
+- [x] **M2 — Market reads: `search_markets`, `get_market_brief` + market resource.** Fixed-point helpers tested; order-book bids-only handling correct; brief aggregates rules+prices+depth+trend.
 - [ ] **M3 — Portfolio reads: `get_positions`, `get_orders` + portfolio resource.** Exposure/status mapped; read uses legacy GET only.
 - [ ] **M4 — Order translation + `preview_order` (no money).** Exhaustive 8-combo translation truth table (incl. NO→YES-leg inversion); caps reject-not-clamp; confirmation token issues + expires.
 - [ ] **M5 — `place_order` (token-gated) + `cancel_order` + `cancel_all_orders` + audit + confirm.** Mutation via V2 namespace only; refuses without valid token; audit log; demo smoke places+cancels.
@@ -35,3 +35,4 @@ Clear it back to empty when the checkpoint is finished.
 -->
 - M0 ✅ Skeleton verified: scaffold (index.ts/server.ts/smoke.test.ts/ci.yml) boots over stdio, `initialize` handshake returns serverInfo+instructions, `npm run verify` green, CI runs `npm ci && npm run verify` (9045cd2).
 - M1 ✅ Signed Kalshi client (injectable transport, mocked tests), RSA-PSS signer round-trip verified, config key-loading (inline/path/Keychain), `get_balance` tool live; server lists 1 tool (ecd97c9).
+- M2 ✅ fixedpoint helpers (round-trip + edge tested), `search_markets` (filters/paging/text), `get_market_brief` (two-sided book from bids-only, series-via-event trend), `kalshi://market/{ticker}` resource; 3 tools + 1 resource (724bf74).
