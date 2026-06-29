@@ -13,4 +13,16 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+  {
+    // Node helper scripts (.mjs) run on Node directly — give them Node globals.
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        URL: 'readonly',
+      },
+    },
+  },
 );
