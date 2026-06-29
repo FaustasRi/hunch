@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# secrets — NEVER commit keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+kalshi-*.pem
+secrets/
+
+# runtime artifacts
+audit-log*.jsonl
+*.log
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# test coverage
+coverage/
