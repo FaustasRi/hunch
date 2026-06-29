@@ -6,10 +6,13 @@
  */
 import type { Config } from './config.js';
 import { KalshiClient } from './kalshi/client.js';
+import { TokenStore } from './safety/token.js';
 
 export interface ServerContext {
   config: Config;
   client: KalshiClient;
+  /** Shared preview→place confirmation tokens (issued by preview_order, M4; consumed by place_order, M5). */
+  tokens: TokenStore;
 }
 
 export function createContext(config: Config): ServerContext {
@@ -18,5 +21,5 @@ export function createContext(config: Config): ServerContext {
     apiKeyId: config.apiKeyId,
     privateKeyPem: config.privateKeyPem,
   });
-  return { config, client };
+  return { config, client, tokens: new TokenStore() };
 }

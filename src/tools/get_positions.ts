@@ -9,7 +9,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ServerContext } from '../context.js';
 import type { KalshiClient } from '../kalshi/client.js';
 import type { KalshiMarketPosition, KalshiPositionsResponse } from '../kalshi/types.js';
-import { parseFp } from '../kalshi/fixedpoint.js';
+import { parseFp, dollarStringToCents } from '../kalshi/fixedpoint.js';
 import { fmtDollars } from '../mcp/format.js';
 import { textResult, errorResult, toErrorMessage } from '../mcp/result.js';
 
@@ -55,6 +55,16 @@ export async function fetchPositions(
     },
   });
   return normalizePositions(res);
+}
+
+/** Sum current open exposure (max loss across positions) in cents — for the exposure cap. */
+export async function fetchOpenExposureCents(client: KalshiClient): Promise<number> {
+  const res = await client.get<KalshiPositionsResponse>('/portfolio/positions', {});
+  return (res.market_positions ?? []).reduce(
+    (sum, p) =>
+      sum + (p.market_exposure_dollars ? dollarStringToCents(p.market_exposure_dollars) : 0),
+    0,
+  );
 }
 
 export function renderPositions(positions: PositionView[]): string {
