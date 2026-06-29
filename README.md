@@ -1,10 +1,12 @@
 # Hunch
 
+[![CI](https://github.com/FaustasRi/hunch/actions/workflows/ci.yml/badge.svg)](https://github.com/FaustasRi/hunch/actions/workflows/ci.yml)
+
 **Talk to Claude (or Codex) about [Kalshi](https://kalshi.com) prediction markets — and place trades by conversation.**
 
 > _A hunch, not a certainty._ Hunch surfaces the market price, the news, and the base rate, then executes the bet **you** decide on — with hard guardrails and a paper-money default. It does **not** try to pick winners for you (see [Why Hunch won't autopick](#why-hunch-wont-autopick)).
 
-> 🚧 **Status: in active build.** This repository is scaffolded and built incrementally by an autonomous agent loop following [`docs/PLAN.md`](docs/PLAN.md). Track progress in [`fix_plan.md`](fix_plan.md).
+> 🚧 **Status: in active build.** This repository is scaffolded and built incrementally by a **stateless autonomous agent loop** — each iteration orients from the repo, completes one checkpoint, and hands off via git. The loop prompt is [`LOOP.md`](LOOP.md); the plan is [`docs/PLAN.md`](docs/PLAN.md); progress is [`fix_plan.md`](fix_plan.md). CI on every push, CD to npm on version tags.
 
 Hunch is an [MCP](https://modelcontextprotocol.io) server. It exposes Kalshi as a small, safe set of tools your AI coding agent can call — so you can have a normal conversation:
 

@@ -16,6 +16,19 @@ For each item: implement → `npm run verify` green → commit (Conventional Com
 - [ ] **M7 — Live-mode gate + safety review.** Demo default; live needs 2 acts, uncap needs 3rd; gating matrix tested; secret/cap/mutation audit passes.
 - [ ] **M8 — Distribution & docs.** `npx -y hunch-mcp` boots from `npm pack`; README Claude Code + Codex snippets correct; CONTRIBUTING. → `EXIT_SIGNAL`.
 
+## In progress
+<!--
+Empty = no checkpoint is mid-flight; the next iteration takes the first unchecked box.
+If you must stop before finishing a checkpoint, REPLACE this comment with a precise note so a
+memoryless next iteration resumes cleanly, e.g.:
+
+  ### M2 (in progress)
+  - done: fixedpoint.ts + tests; search_markets tool + fixtures
+  - remaining: get_market_brief candlestick aggregation (series_ticker resolution) + market resource
+
+Clear it back to empty when the checkpoint is finished.
+-->
+
 ## Done log
 <!-- Append one line per checkpoint as you complete it, newest last. e.g.:
 - M0 ✅ <short note> (<commit sha>)

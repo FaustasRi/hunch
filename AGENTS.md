@@ -4,14 +4,27 @@ You are an autonomous coding agent building **Hunch**. This file tells you how t
 
 ## The loop protocol
 
-1. Open [`fix_plan.md`](fix_plan.md). Find the **first unchecked `[ ]` checkpoint**. That is your task — _only that one_.
-2. Open the matching section in [`docs/PLAN.md`](docs/PLAN.md) for the full spec: goal, files to touch, where to look, gotchas, and **Definition of Done (DoD)**.
-3. Implement it. Stay inside the checkpoint's scope — do not pull work forward from later checkpoints.
-4. **Verify:** run `npm run verify` (typecheck + lint + test + build). It must be **green**. Fix what you broke.
-5. **Commit** with a Conventional Commit message (see below). One checkpoint = one (or a few tightly-related) commits.
-6. **Tick the box** `[x]` in `fix_plan.md` and add a one-line note of what landed.
-7. Stop (or, in a continuous loop, proceed to the next unchecked item).
-8. **Exit condition:** when every box in `fix_plan.md` is `[x]`, the build is done — print `EXIT_SIGNAL: hunch v1 complete` and stop. Do not invent new work.
+Each iteration starts with **no memory** of the last one — the **repository is the only state**. Progress lives in git history, the ticked boxes + Done log in [`fix_plan.md`](fix_plan.md), and any `## In progress` note there. [`LOOP.md`](LOOP.md) is the exact prompt to feed a loop runner each cycle; this is the rationale.
+
+**0. Orient — always, before touching code.**
+   - `git log --oneline -15` (what landed).
+   - `npm install` if `node_modules` is missing, then `npm run verify` (current green/red state).
+   - Read this file, skim [`CONTEXT.md`](CONTEXT.md), then read `fix_plan.md` (boxes, Done log, any `## In progress`).
+
+**1. Decide your one task** (first match wins).
+   - `npm run verify` **RED** → making it green again IS the task. Fix, commit, stop.
+   - Else an `## In progress` note exists → resume and finish that checkpoint.
+   - Else → the **first unchecked `[ ]`** checkpoint. Only that one. Never skip ahead.
+   - All boxes `[x]` and verify green → print `EXIT_SIGNAL: hunch v1 complete` and stop. Invent no new work.
+
+**2. Execute** the checkpoint per its [`docs/PLAN.md`](docs/PLAN.md) spec (goal, files, where to look, gotchas, DoD). Stay in scope — do not pull later work forward.
+
+**3. Land.**
+   - `npm run verify` (typecheck + lint + test + build) must be **green**.
+   - Commit (Conventional Commit; end body with `Checkpoint: Mx`) and **push** to `main` (CI is the backstop).
+   - Fully done → tick `[x]` and add a one-line Done-log entry; commit.
+   - Stopping mid-checkpoint → write a precise `## In progress` note (done / remaining sub-bullets) and commit the WIP so the next iteration resumes cleanly.
+   - **Stop.** Do not start the next checkpoint in the same iteration.
 
 ## Hard rules (non-negotiable)
 
@@ -47,6 +60,12 @@ You are an autonomous coding agent building **Hunch**. This file tells you how t
 - Reference the checkpoint: end the body with `Checkpoint: M3`.
 - Keep commits green and self-contained. Update docs (CONTEXT/ADR/PLAN) in the **same commit** as the code that changes a decision — this repo is led by its docs, not governed by them; stale docs are bugs.
 - Do **not** add AI-attribution/co-author trailers unless the operator's global config asks for them.
+
+## Branch & CI/CD model
+
+- **Direct to `main`.** The loop commits and pushes straight to `main` — no PR dance (autonomous loops deadlock waiting on PR/auto-merge). The gate is **local `npm run verify` before every commit**; keep `main` green.
+- **CI** (`.github/workflows/ci.yml`) runs `npm ci && npm run verify` on every push and PR — the backstop and the public green/red signal. If CI is red, the next iteration's job is to green it (orient step catches it).
+- **CD** (`.github/workflows/release.yml`) publishes to npm on a `v*` **tag** only — never on a normal commit. Cutting a release is a deliberate, separate act (see [`docs/RELEASING.md`](docs/RELEASING.md)); it requires the `NPM_TOKEN` repo secret. The build loop does **not** publish; it only lands code on `main`.
 
 ## Definition of done for v1
 

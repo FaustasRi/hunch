@@ -40,7 +40,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "prepublishOnly": "npm run verify"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
