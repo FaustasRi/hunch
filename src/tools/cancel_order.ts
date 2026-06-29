@@ -71,7 +71,9 @@ export function register(server: McpServer, ctx: ServerContext): void {
     {
       title: 'Cancel an order',
       description:
-        'Cancel one resting order by its order_id (Kalshi V2). Records the outcome to the audit log.',
+        'Cancel one resting order by its order_id (Kalshi V2) — the way to back out / undo a ' +
+        'resting (unfilled) order. A filled order cannot be undone, only offset by a new trade. ' +
+        'Records the outcome to the audit log.',
       inputSchema: {
         order_id: z.string().min(1).describe('The order_id to cancel (from get_orders).'),
       },

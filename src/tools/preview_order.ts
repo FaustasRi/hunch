@@ -20,14 +20,18 @@ import { textResult, errorResult, toErrorMessage } from '../mcp/result.js';
 const inputShape = {
   ticker: z.string().min(1).describe('Market ticker.'),
   action: z.enum(['buy', 'sell']).describe('buy or sell the named side.'),
-  side: z.enum(['yes', 'no']).describe('Which outcome you are pricing.'),
+  side: z
+    .enum(['yes', 'no'])
+    .describe(
+      'The named side this order is on: yes or no. price and action both refer to THIS side.',
+    ),
   price: z
     .number()
     .int()
     .min(1)
     .max(99)
     .describe('Price in cents (= probability) of the named side.'),
-  count: z.number().int().min(1).describe('Number of contracts.'),
+  count: z.number().int().min(1).describe('Number of contracts (whole number, ≥ 1).'),
   tif: z
     .enum(['limit', 'market'])
     .default('limit')

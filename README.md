@@ -68,7 +68,7 @@ To actually trade (even demo), you need a Kalshi **demo** account + API key — 
 | `get_balance` | read | Cash + portfolio value |
 | `get_positions` | read | Open positions with exposure |
 | `get_orders` | read | Your resting / recent orders |
-| `preview_order` | read | Dry-run: cost, worst-case fill, exposure-after, cap check → confirmation token |
+| `preview_order` | read | Dry-run: max loss, exposure-after, cap check → confirmation token |
 | `place_order` | **write** | Execute (token-gated). `"buy YES at 16¢"` = a resting GTC limit |
 | `cancel_order` | **write** | Cancel one resting order |
 | `cancel_all_orders` | **write** | Kill switch |

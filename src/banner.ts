@@ -30,7 +30,10 @@ export function caveats(config: Config): string[] {
         'US-state-dependent. You are responsible for compliance in your location.',
     );
     if (!config.allowSports) {
-      lines.push('  • Sports markets are gated (ALLOW_SPORTS not set).');
+      lines.push(
+        '  • Sports markets are NOT auto-blocked (ALLOW_SPORTS not set): per-market gating is ' +
+          'not enforced in v1 — sports legality is your responsibility.',
+      );
     }
   }
   if (config.caps.disableLimits) {

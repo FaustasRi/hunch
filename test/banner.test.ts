@@ -32,7 +32,7 @@ describe('startupBanner', () => {
     expect(b).toContain('env=live');
     expect(b).toContain('REAL MONEY');
     expect(b).toMatch(/Jurisdiction caveat/);
-    expect(b).toMatch(/Sports markets are gated/);
+    expect(b).toMatch(/Sports markets are NOT auto-blocked/);
   });
 
   it('warns when live lacks credentials, not when present', () => {
