@@ -18,3 +18,13 @@ An LLM that can place real-money orders is dangerous: hallucinated params, runaw
 ## Consequences
 - Live trading is deliberate; demo is frictionless and risk-free.
 - Caps/token/audit are pure, unit-testable cores (see PLAN M4/M5).
+
+## v1 implementation notes (M7)
+- The two/three-act gate is enforced structurally in `config.ts`: env defaults to demo;
+  a stray key alone cannot switch to live (it only changes the host when `KALSHI_ENV=live`);
+  `DISABLE_LIMITS` is honored ONLY in live (`resolveDisableLimits`), so caps always exercise in demo.
+- A stderr startup banner states the resolved env + caps and raises the live / uncapped / sports caveats.
+- **Sports gating (point 8) in v1 = the `ALLOW_SPORTS` flag + a prominent live-mode jurisdiction/sports
+  caveat that informs the user (legality is US-state-dependent and unknowable server-side).** Automatic
+  per-market sports classification + hard rejection is deferred — it needs reliable category data and the
+  informing caveat is the meaningful safeguard. Revisit if Kalshi market metadata makes classification cheap.

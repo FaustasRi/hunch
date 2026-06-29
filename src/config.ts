@@ -33,9 +33,6 @@ const PROD_BASE = 'https://api.elections.kalshi.com/trade-api/v2';
 export function loadConfig(): Config {
   const env: KalshiEnv = process.env.KALSHI_ENV === 'live' ? 'live' : 'demo';
 
-  // TODO(M7): enforce that live requires apiKeyId + key present; surface a
-  //   startup banner with env + active caps; gate sports behind allowSports.
-
   return {
     env,
     baseUrl: env === 'live' ? PROD_BASE : DEMO_BASE,
@@ -45,11 +42,23 @@ export function loadConfig(): Config {
       maxOrderUsd: numEnv(process.env.MAX_ORDER_USD, 25),
       maxDailyUsd: numEnv(process.env.MAX_DAILY_USD, 100),
       maxOpenExposureUsd: numEnv(process.env.MAX_OPEN_EXPOSURE_USD, 250),
-      disableLimits: process.env.DISABLE_LIMITS === 'true',
+      // The third conscious act: uncapping is honored ONLY in live. In demo,
+      // DISABLE_LIMITS is ignored, so the caps always exercise (ADR-0003).
+      disableLimits: resolveDisableLimits(env, process.env.DISABLE_LIMITS === 'true'),
     },
     allowSports: process.env.ALLOW_SPORTS === 'true',
     auditLogPath: process.env.AUDIT_LOG_PATH ?? './audit-log.jsonl',
   };
+}
+
+/** Uncapping (DISABLE_LIMITS) is only honored together with live mode. */
+export function resolveDisableLimits(env: KalshiEnv, rawDisableLimits: boolean): boolean {
+  return env === 'live' && rawDisableLimits;
+}
+
+/** True when both credentials needed for authenticated/live calls are present. */
+export function hasCredentials(config: Config): boolean {
+  return Boolean(config.apiKeyId && config.privateKeyPem);
 }
 
 /**

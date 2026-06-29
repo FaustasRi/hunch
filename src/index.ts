@@ -4,10 +4,14 @@
  * NOTE: stdout is the JSON-RPC channel — all logging goes to stderr.
  */
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { loadConfig } from './config.js';
+import { startupBanner } from './banner.js';
 import { createServer } from './server.js';
 
 async function main(): Promise<void> {
-  const server = createServer();
+  const config = loadConfig();
+  console.error(startupBanner(config)); // stderr — stdout is the JSON-RPC channel
+  const server = createServer(config);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('[hunch] MCP server connected over stdio');

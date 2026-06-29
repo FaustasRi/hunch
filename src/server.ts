@@ -3,7 +3,7 @@
  * here as checkpoints land (see docs/PLAN.md). Today: an empty, booting server.
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { loadConfig } from './config.js';
+import { loadConfig, type Config } from './config.js';
 import { createContext } from './context.js';
 import { buildInstructions } from './instructions.js';
 import { register as registerGetBalance } from './tools/get_balance.js';
@@ -24,8 +24,7 @@ import { register as registerReviewPositionsPrompt } from './prompts/review_posi
 const NAME = 'hunch';
 const VERSION = '0.0.0';
 
-export function createServer(): McpServer {
-  const config = loadConfig();
+export function createServer(config: Config = loadConfig()): McpServer {
   const ctx = createContext(config);
 
   const server = new McpServer(
